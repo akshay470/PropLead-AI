@@ -47,14 +47,24 @@ Fill in your database URL and application secrets.
 pnpm install
 ```
 
-### 4. Database Migrations
-Generate and apply migrations:
+### 4. Database Migrations & Seeding
+Generate and apply migrations, then seed realistic demo data:
 ```bash
 pnpm run db:generate
 pnpm run db:migrate
+pnpm run seed
 ```
 
-### 5. Running the Application
+### 5. Demo Credentials
+All seeded staff and demo accounts use password: `DemoPass123!`
+- **Sales Head (Admin):** `admin@example.com`
+- **Sales Executive 1:** `rajesh@example.com`
+- **Sales Executive 2:** `ananya@example.com`
+- **Sales Executive 3:** `priya@example.com`
+- **Sales Executive 4:** `amit@example.com`
+- **Demo Buyer:** `buyer@example.com`
+
+### 6. Running the Application
 ```bash
 # Development mode
 pnpm run dev
