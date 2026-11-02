@@ -64,7 +64,30 @@ This document records the operational, architectural, and regulatory assumptions
   - **Cutoff skips:** If a visit is booked < 24 hours before the appointment, the 1-day reminder is automatically skipped. If < 2 hours, both reminders are skipped.
   - **Cron Dispatcher:** `GET /api/cron/reminders` runs periodically (configured in `vercel.json`), protected by `Bearer ${CRON_SECRET}`. It processes pending due reminders, skips opted-out leads and cancelled bookings, and logs dispatches to `message_log`.
 
-## 5. Security & Demo Credentials
+## 5. AI Assistant, Guardrails & Security
+- **LLM Architecture & Swappable Providers:**
+  - AI chat runs through the `ILlmProvider` abstraction (`src/server/ai/provider.ts`), supporting zero-cost deterministic mock execution (`MockLlmProvider`) for CI/tests/evals and real cloud inference (`GeminiProvider`) via `LLM_PROVIDER=gemini` and `LLM_API_KEY`.
+  - Configured with a 10-second timeout, 1 automatic retry, and a maximum 5-turn tool calling loop per message turn.
+  - Safe failure tolerance: If the provider experiences downtime or timeouts, the chat never throws a 500 error or hangs. Instead, it responds with a polite localized apology, automatically creates a handoff to an executive, and flags the conversation for review.
+- **Code-Level Output Guardrail (Price & Claims Inspection):**
+  - Prompt instructions alone are insufficient for real estate compliance. PropLead AI uses an algorithmic post-generation code guardrail (`src/server/ai/guardrails/price-checker.ts`) that inspects every assistant message before it reaches the buyer.
+  - Regex AST & Unicode script boundaries detect any attempt to offer discounts, negotiate, confirm final pricing, or make speculative guarantees across English, Hindi (e.g. `छूट`, `सौदा`, `गारंटी`), and Gujarati (e.g. `સસ્તી`, `છૂટ`, `ખાતરી`).
+  - Strict price bounds validation: Parsed rupee figures must fall within the developer's registered portfolio band (Rs 65 Lakh to Rs 1.20 Crore).
+  - Any violation immediately replaces the assistant's reply with a neutral, RERA-grounded compliance disclaimer, records the violation in the message payload, flags the conversation, and dispatches a high-priority handoff to a sales executive.
+- **Rate Limiting & Abuse Prevention:**
+  - In-memory sliding window rate limiter protects endpoints:
+    - 15 requests / minute per active lead session.
+    - 30 requests / minute per client IP address.
+  - HTTP 429 is returned gracefully with localized retry suggestions when thresholds are exceeded.
+- **Session Security & Booking Lead Authorization:**
+  - Public prospective buyers obtain a signed, HTTP-only JWT cookie (`proplead_lead_session`, 24h validity) upon starting a chat (`/api/chat/start`).
+  - All public booking actions (`POST /api/bookings`, `/cancel`, `/reschedule`) cryptographically derive `leadId` directly from the verified session token. Any `leadId` supplied in the JSON request body is strictly discarded for buyer sessions to prevent account impersonation or unauthorized booking mutations.
+- **Executive Handoff Logic:**
+  - Handoff requests assign the lead to their currently assigned sales executive. If unassigned, the system automatically selects the executive with the lowest count of open active leads.
+  - Generates structured contextual summaries (buyer sentiment, preferred BHK, budget range, key inquiries, open questions, and recommended next action) with fallback if LLM summarization is unavailable.
+  - Idempotent: Subsequent handoff requests within a 2-hour window reuse the existing open handoff record.
+
+## 6. Demo Credentials & Interactive Preview
 - **Session Tokens & Cookie Policy:**
   - User authentication relies on secure, `HttpOnly`, `SameSite=Lax` cookies containing encrypted JWT tokens (via `jose`).
   - Role hierarchy:

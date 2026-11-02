@@ -1,7 +1,13 @@
 export type SupportedLanguage = "en" | "hi" | "gu";
 
 export interface ToolDefinition {
-  name: "get_fact" | "list_free_slots" | "book_visit" | "handoff_to_executive" | "save_lead_details";
+  name:
+    | "get_fact"
+    | "list_free_slots"
+    | "book_visit"
+    | "handoff_to_executive"
+    | "save_lead_details"
+    | "flag_conversation";
   description: string;
   parameters: Record<string, unknown>;
 }
@@ -32,6 +38,7 @@ export interface ILlmProvider {
   name: string;
   generateResponse(
     messages: ChatMessage[],
-    tools?: ToolDefinition[]
+    tools?: ToolDefinition[],
+    systemPrompt?: string
   ): Promise<LlmCompletionResponse>;
 }

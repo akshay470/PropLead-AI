@@ -170,7 +170,9 @@ describe("Booking Service & Double-Booking Protection", () => {
       testDb
     );
     expect(resNoConsent.success).toBe(false);
-    expect(resNoConsent.code).toBe("NO_CONSENT");
+    if (!resNoConsent.success) {
+      expect(resNoConsent.code).toBe("NO_CONSENT");
+    }
 
     // Opted out lead
     const resOptedOut = await bookingService.bookVisit(
@@ -178,7 +180,9 @@ describe("Booking Service & Double-Booking Protection", () => {
       testDb
     );
     expect(resOptedOut.success).toBe(false);
-    expect(resOptedOut.code).toBe("OPTED_OUT");
+    if (!resOptedOut.success) {
+      expect(resOptedOut.code).toBe("OPTED_OUT");
+    }
   });
 
   it("should successfully book a slot, create reminders, and prevent duplicate bookings for same project", async () => {
@@ -227,7 +231,9 @@ describe("Booking Service & Double-Booking Protection", () => {
     );
 
     expect(secondBookingRes.success).toBe(false);
-    expect(secondBookingRes.code).toBe("ALREADY_BOOKED");
+    if (!secondBookingRes.success) {
+      expect(secondBookingRes.code).toBe("ALREADY_BOOKED");
+    }
   });
 
   it("should cancel booking, cancel pending reminders, and allow the slot to be rebooked", async () => {

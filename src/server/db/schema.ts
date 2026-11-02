@@ -7,6 +7,7 @@ import {
   boolean,
   numeric,
   bigint,
+  integer,
   timestamp,
   pgEnum,
   uniqueIndex,
@@ -289,6 +290,9 @@ export const messages = pgTable(
     language: varchar("language", { length: 10 }).default("en").notNull(),
     flagged: boolean("flagged").default(false).notNull(),
     flagReason: text("flag_reason"),
+    latencyMs: integer("latency_ms"),
+    factIds: text("fact_ids"),
+    payload: text("payload"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -311,6 +315,8 @@ export const handoffs = pgTable(
     executiveId: uuid("executive_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
+    conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "set null" }),
+    reason: varchar("reason", { length: 50 }).default("buyer_requested").notNull(),
     summary: text("summary").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },

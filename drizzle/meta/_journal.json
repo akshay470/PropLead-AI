@@ -15,6 +15,13 @@
       "when": 1793647446288,
       "tag": "0001_left_carnage",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793649645444,
+      "tag": "0002_wide_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }

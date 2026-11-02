@@ -79,9 +79,18 @@ pnpm run dev
 # Testing (Unit & Integration)
 pnpm run test
 
+# AI Benchmark Evaluation (25 statutory & conversational scenarios)
+pnpm run eval:ai
+
 # Linting
 pnpm run lint
 
 # Production build
 pnpm run build
 ```
+
+## AI Assistant & Compliance Guardrails
+- **Grounding:** Strict single-source-of-truth grounded in Gujarat RERA registered project fact sheets (`get_fact` tool).
+- **Hard Guardrails:** Algorithmic post-generation inspection in `src/server/ai/guardrails/price-checker.ts`. Blocks unapproved discounts, price negotiations, and final price commitments across English, Hindi, and Gujarati.
+- **DPDP Compliance:** Explicit affirmative consent required before chat initiation; immediate opt-out (`STOP`, `रद्द`, `બંધ કરો`) sets `opted_out = true` and halts reminders.
+- **Evaluations:** 25 automated evaluation scenarios testing multilingual Q&A, prompt injection defenses, RERA price guardrails, and slot booking. Run via `pnpm run eval:ai` (report generated in `docs/ai-evals.md`).
