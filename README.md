@@ -64,14 +64,24 @@ All seeded staff and demo accounts use password: `DemoPass123!`
 - **Sales Executive 4:** `amit@example.com`
 - **Demo Buyer:** `buyer@example.com`
 
-### 6. Running the Application
+### 6. Available Screens & Roles
+- **Public Buyer Assistant:** `/chat` (Public, affirmative DPDP consent, multilingual qualification, RERA disclosures)
+- **Executive Leads Queue:** `/executive/leads` (Unified intake, real-time deduplication, manual merge/unlink, fast-response badges)
+- **Executive Site Visits:** `/executive/visits` (Upcoming & past visits, tap-to-call, Google Maps pins, Mark Visited / No-Show, Reschedule modal)
+- **Interactive Booking Harness:** `/book-preview` (Interactive testing harness for slot selection, concurrency conflicts, and .ics calendar downloads)
+- **Sales Head Admin:** `/admin` (Fact sheet editor, slot inventory, review queues, channel performance)
+
+### 7. Running the Application
 ```bash
 # Development mode
 pnpm run dev
 
-# Testing
+# Testing (Unit & Integration)
 pnpm run test
 
 # Linting
 pnpm run lint
+
+# Production build
+pnpm run build
 ```

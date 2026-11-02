@@ -3,8 +3,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { eq } from "drizzle-orm";
 import * as schema from "@/server/db/schema";
-import * as fs from "fs";
-import * as path from "path";
+import { applyMigrations } from "../helpers/db";
 import { createLeadFromEnquiry, setFirstResponseAt } from "@/server/services/leads/ingestion";
 
 describe("Lead Ingestion Service (Integration)", () => {
@@ -16,17 +15,8 @@ describe("Lead Ingestion Service (Integration)", () => {
     pg = new PGlite();
     testDb = drizzle(pg, { schema });
 
-    // Run initial migration
-    const migrationPath = path.resolve(__dirname, "../../drizzle/0000_luxuriant_agent_zero.sql");
-    const migrationSql = fs.readFileSync(migrationPath, "utf-8");
-    const statements = migrationSql
-      .split("--> statement-breakpoint")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-
-    for (const statement of statements) {
-      await pg.exec(statement);
-    }
+    // Run all real migrations
+    await applyMigrations(pg);
 
     // Insert dummy project
     const [p] = await testDb

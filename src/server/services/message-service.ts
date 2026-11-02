@@ -18,8 +18,8 @@ export interface IMessageService {
  * Mocked message service that logs all outgoing dispatches to the message_log table.
  */
 export class MockMessageService implements IMessageService {
-  async sendMessage(options: SendMessageOptions) {
-    const [log] = await db
+  async sendMessage(options: SendMessageOptions, dbOrTx: typeof db = db) {
+    const [log] = await dbOrTx
       .insert(messageLog)
       .values({
         channel: options.channel,

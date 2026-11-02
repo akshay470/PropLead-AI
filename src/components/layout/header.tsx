@@ -35,10 +35,22 @@ export async function Header() {
             Buyer Assistant
           </Link>
           <Link
-            href="/executive"
+            href="/executive/leads"
             className="transition-colors hover:text-ink-900"
           >
-            Executive Queue
+            Leads
+          </Link>
+          <Link
+            href="/executive/visits"
+            className="transition-colors hover:text-ink-900"
+          >
+            Visits
+          </Link>
+          <Link
+            href="/book-preview"
+            className="transition-colors hover:text-ink-900"
+          >
+            Book Preview
           </Link>
           <Link
             href="/admin"

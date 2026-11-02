@@ -1,5 +1,14 @@
 import { db } from "./index";
-import { users, projects, leads, adSpend } from "./schema";
+import {
+  users,
+  projects,
+  leads,
+  adSpend,
+  factSheetEntries,
+  visitSlots,
+  bookings,
+  reminders,
+} from "./schema";
 import { hashPassword } from "../auth/passwords";
 import { findDuplicate, DedupeLeadRecord } from "../services/leads/deduplication";
 import { eq, sql } from "drizzle-orm";
@@ -19,22 +28,19 @@ export async function runSeed() {
     return d;
   };
 
-  const tomorrowAt = (hour = 11, minute = 0) => {
+  const daysAhead = (days: number, hours = 10, minutes = 0) => {
     const d = new Date(now);
-    d.setDate(d.getDate() + 1);
-    d.setHours(hour, minute, 0, 0);
-    return d;
-  };
-
-  const yesterdayAt = (hour = 16, minute = 0) => {
-    const d = new Date(now);
-    d.setDate(d.getDate() - 1);
-    d.setHours(hour, minute, 0, 0);
+    d.setDate(d.getDate() + days);
+    d.setHours(hours, minutes, 0, 0);
     return d;
   };
 
   // 1. CLEANUP (Idempotency)
   console.log("🧹 Resetting existing tables...");
+  await db.delete(reminders);
+  await db.delete(bookings);
+  await db.delete(visitSlots);
+  await db.delete(factSheetEntries);
   await db.delete(adSpend);
   await db.delete(leads);
   await db.delete(projects);
@@ -475,11 +481,319 @@ export async function runSeed() {
     }
   }
 
+  // 8. SEED FACT SHEET ENTRIES (Project 1 & Project 2)
+  console.log("📖 Seeding verified RERA fact sheet entries for AI grounding...");
+  const factSheets = [
+    // Project 1
+    {
+      projectId: project1.id,
+      category: "Overview",
+      questionKey: "overview",
+      answerText:
+        "The Grand Orchard is a premium residential enclave developed by Company A, situated in Bodakdev, Ahmedabad. The project spans 3.5 acres featuring 3 high-rise towers of G+22 floors with 220 luxury apartments designed for sustainable urban living.",
+    },
+    {
+      projectId: project1.id,
+      category: "Unit Types",
+      questionKey: "unit_types",
+      answerText:
+        "Project 1 offers 2 BHK and 3 BHK luxury residences. 2 BHK units feature carpet areas ranging from 740 sq.ft to 810 sq.ft. 3 BHK units feature carpet areas ranging from 1,060 sq.ft to 1,220 sq.ft.",
+    },
+    {
+      projectId: project1.id,
+      category: "Pricing",
+      questionKey: "pricing",
+      answerText:
+        "Indicative price band for Project 1: 2 BHK residences range from Rs 75 Lakh to Rs 88 Lakh; 3 BHK residences range from Rs 98 Lakh to Rs 1.20 Crore depending on floor and orientation. Final prices are determined exclusively by official sales agreements upon booking. No discounts or unapproved schemes are offered.",
+    },
+    {
+      projectId: project1.id,
+      category: "Amenities",
+      questionKey: "amenities",
+      answerText:
+        "Residents enjoy an exclusive 15,000 sq.ft clubhouse, temperature-controlled indoor swimming pool, high-tech fitness gymnasium, squash court, rooftop sky lounge, children's themed play area, reflexology walking track, and 24/7 multi-tier security.",
+    },
+    {
+      projectId: project1.id,
+      category: "Location",
+      questionKey: "location",
+      answerText:
+        "Prime location on SG Highway, Bodakdev, Ahmedabad. Located 400 meters from Iscon Cross Road, 1.2 km from SG Highway BRTS hub, 2 km from Zydus Hospital, and 3.5 km from leading schools.",
+    },
+    {
+      projectId: project1.id,
+      category: "Possession",
+      questionKey: "possession",
+      answerText:
+        "RERA registered possession date is December 2026. Construction is progressing as per AUDA and RERA milestone schedules.",
+    },
+    {
+      projectId: project1.id,
+      category: "RERA Details",
+      questionKey: "rera_number",
+      answerText:
+        "Gujarat RERA Registration Number: PR/GJ/AHMEDABAD/DEMO-0001. All approvals and approved plans can be verified on the official Gujarat RERA portal at gujrera.gujarat.gov.in.",
+    },
+    {
+      projectId: project1.id,
+      category: "Visit Guidelines",
+      questionKey: "visit_timings",
+      answerText:
+        "The Experience Centre and model apartments are open Monday through Saturday from 10:00 AM to 6:00 PM (last appointment at 5:00 PM). Please carry a valid Government-issued photo ID for visitor pass registration.",
+    },
+    {
+      projectId: project1.id,
+      category: "Parking",
+      questionKey: "parking",
+      answerText:
+        "Each 2 BHK includes 1 designated covered basement parking bay. 3 BHK units include 2 allotted parking bays.",
+    },
+    {
+      projectId: project1.id,
+      category: "Loan Assistance",
+      questionKey: "loan_assistance",
+      answerText:
+        "Comprehensive home loan facilitation is available through leading approved nationalized and private banking institutions offering competitive interest rates.",
+    },
+    {
+      projectId: project1.id,
+      category: "Contact Policy",
+      questionKey: "contact_policy",
+      answerText:
+        "All prospective buyer interactions require prior affirmative consent under DPDP Act 2023. A dedicated relationship executive is assigned upon site visit confirmation.",
+    },
+
+    // Project 2
+    {
+      projectId: project2.id,
+      category: "Overview",
+      questionKey: "overview",
+      answerText:
+        "Serene Meadows is a modern lifestyle community by Company A located in South Bopal / Shela extension, Ahmedabad. Set across 4.2 acres with 4 towers of G+18 floors and 200 thoughtfully planned residences.",
+    },
+    {
+      projectId: project2.id,
+      category: "Unit Types",
+      questionKey: "unit_types",
+      answerText:
+        "Project 2 features contemporary 2 BHK and 3 BHK family homes. 2 BHK carpet areas range from 680 sq.ft to 750 sq.ft. 3 BHK carpet areas range from 980 sq.ft to 1,120 sq.ft.",
+    },
+    {
+      projectId: project2.id,
+      category: "Pricing",
+      questionKey: "pricing",
+      answerText:
+        "Indicative price band for Project 2: 2 BHK residences range from Rs 65 Lakh to Rs 76 Lakh; 3 BHK residences range from Rs 85 Lakh to Rs 1.05 Crore. Final terms are established strictly via formal developer agreements.",
+    },
+    {
+      projectId: project2.id,
+      category: "Amenities",
+      questionKey: "amenities",
+      answerText:
+        "Community clubhouse with multipurpose banquet hall, open-air swimming pool with kids' splash pool, gymnasium, badminton court, yoga and meditation lawn, landscaped senior citizen garden, and EV charging bays.",
+    },
+    {
+      projectId: project2.id,
+      category: "Location",
+      questionKey: "location",
+      answerText:
+        "Situated on Club O7 Road, Shela, Ahmedabad. 5 minutes from South Bopal main ring road, 10 minutes from SP Ring Road, and close to reputable international schools and healthcare centers.",
+    },
+    {
+      projectId: project2.id,
+      category: "Possession",
+      questionKey: "possession",
+      answerText:
+        "RERA registered possession date is June 2027. Foundations and podium structures are fully completed.",
+    },
+    {
+      projectId: project2.id,
+      category: "RERA Details",
+      questionKey: "rera_number",
+      answerText:
+        "Gujarat RERA Registration Number: PR/GJ/AHMEDABAD/DEMO-0002. Public disclosures and verified project documents are accessible on gujrera.gujarat.gov.in.",
+    },
+    {
+      projectId: project2.id,
+      category: "Visit Guidelines",
+      questionKey: "visit_timings",
+      answerText:
+        "Sales gallery operates Monday to Saturday, 10:00 AM to 6:00 PM (last slot 5:00 PM). Prior appointment booking is recommended to guarantee executive availability.",
+    },
+    {
+      projectId: project2.id,
+      category: "Parking",
+      questionKey: "parking",
+      answerText:
+        "Secure basement and stilt parking slots are allotted with every residential unit.",
+    },
+    {
+      projectId: project2.id,
+      category: "Loan Assistance",
+      questionKey: "loan_assistance",
+      answerText:
+        "Standard home loan advisory and documentation assistance are provided through major authorized financial institutions.",
+    },
+    {
+      projectId: project2.id,
+      category: "Contact Policy",
+      questionKey: "contact_policy",
+      answerText:
+        "Communications strictly follow buyer consent guidelines. You may opt out at any time by messaging STOP.",
+    },
+  ];
+
+  await db.insert(factSheetEntries).values(factSheets);
+
+  // 9. SEED VISIT SLOTS & BOOKINGS
+  console.log("📅 Generating calendar slots and confirmed bookings...");
+
+  // Project 1 executives: Rajesh Sharma (0) and Ananya Shah (1)
+  // Project 2 executives: Priya Patel (2) and Amit Joshi (3)
+  const execCoverage = [
+    { exec: executiveUsers[0], project: project1 },
+    { exec: executiveUsers[1], project: project1 },
+    { exec: executiveUsers[2], project: project2 },
+    { exec: executiveUsers[3], project: project2 },
+  ];
+
+  const slotHours = [10, 11, 12, 14, 15, 16, 17]; // 10:00 to 18:00 (last slot at 17:00)
+
+  // A. Generate future slots for next 14 days (excluding Sundays)
+  const futureSlotsToInsert = [];
+  for (let dayOffset = 1; dayOffset <= 14; dayOffset++) {
+    const slotDate = new Date(now);
+    slotDate.setDate(slotDate.getDate() + dayOffset);
+
+    // Skip Sundays (0)
+    if (slotDate.getDay() === 0) continue;
+
+    for (const coverage of execCoverage) {
+      for (const hour of slotHours) {
+        const startsAt = new Date(slotDate);
+        startsAt.setHours(hour, 0, 0, 0);
+
+        const endsAt = new Date(slotDate);
+        endsAt.setHours(hour + 1, 0, 0, 0);
+
+        futureSlotsToInsert.push({
+          projectId: coverage.project.id,
+          executiveId: coverage.exec.id,
+          startsAt,
+          endsAt,
+          status: "available" as const,
+        });
+      }
+    }
+  }
+
+  const insertedFutureSlots = await db
+    .insert(visitSlots)
+    .values(futureSlotsToInsert)
+    .returning();
+
+  // B. Seed LD-58210 Hardik Patel's booking tomorrow at 11:00 with Rajesh Sharma (Project 1)
+  const tomorrow11AM = new Date(now);
+  tomorrow11AM.setDate(tomorrow11AM.getDate() + 1);
+  tomorrow11AM.setHours(11, 0, 0, 0);
+
+  // Find the exact matching slot in insertedFutureSlots
+  const hardikSlot = insertedFutureSlots.find(
+    (s) =>
+      s.executiveId === executiveUsers[0].id &&
+      s.projectId === project1.id &&
+      new Date(s.startsAt).getTime() === tomorrow11AM.getTime()
+  );
+
+  if (hardikSlot) {
+    const [hardikBooking] = await db
+      .insert(bookings)
+      .values({
+        slotId: hardikSlot.id,
+        leadId: leadHardik.id,
+        status: "confirmed",
+      })
+      .returning();
+
+    // Create 1-day reminder for Hardik's visit
+    const reminder1Day = new Date(tomorrow11AM.getTime() - 24 * 3600 * 1000);
+    await db.insert(reminders).values({
+      bookingId: hardikBooking.id,
+      type: "1_day",
+      scheduledAt: reminder1Day,
+      status: "pending",
+    });
+
+    console.log(`  ✓ LD-58210 booked slot ${hardikSlot.id} for tomorrow 11:00 (Taken, not free)`);
+  }
+
+  // C. Seed past visit slots & bookings for the last 30 days
+  const pastSlotsToInsert = [];
+  const pastBookingLinks = [];
+
+  // Seed Kavita Joshi's visit yesterday at 16:00 (visited)
+  const yesterday16SlotStart = new Date(now);
+  yesterday16SlotStart.setDate(yesterday16SlotStart.getDate() - 1);
+  yesterday16SlotStart.setHours(16, 0, 0, 0);
+
+  const yesterday16SlotEnd = new Date(yesterday16SlotStart);
+  yesterday16SlotEnd.setHours(17, 0, 0, 0);
+
+  const [kavitaSlot] = await db
+    .insert(visitSlots)
+    .values({
+      projectId: project2.id,
+      executiveId: executiveUsers[2].id,
+      startsAt: yesterday16SlotStart,
+      endsAt: yesterday16SlotEnd,
+      status: "booked",
+    })
+    .returning();
+
+  await db.insert(bookings).values({
+    slotId: kavitaSlot.id,
+    leadId: leadKavita.id,
+    status: "visited",
+    createdAt: daysAgo(5),
+  });
+
+  // Seed 12 more past visits from the seeded leads (mix of visited and no_show)
+  const pastSampleLeads = seededLeads.slice(3, 15);
+  for (let idx = 0; idx < pastSampleLeads.length; idx++) {
+    const leadRecord = pastSampleLeads[idx];
+    const pastDay = (idx * 2) + 2;
+    const slotStart = daysAgo(pastDay, 14, 0);
+    const slotEnd = daysAgo(pastDay, 15, 0);
+    const exec = executiveUsers[idx % executiveUsers.length];
+    const proj = idx % 2 === 0 ? project1 : project2;
+    const outcome = idx % 3 === 0 ? ("no_show" as const) : ("visited" as const);
+
+    const [pastSlot] = await db
+      .insert(visitSlots)
+      .values({
+        projectId: proj.id,
+        executiveId: exec.id,
+        startsAt: slotStart,
+        endsAt: slotEnd,
+        status: "booked",
+      })
+      .returning();
+
+    await db.insert(bookings).values({
+      slotId: pastSlot.id,
+      leadId: leadRecord.id,
+      status: outcome,
+      createdAt: daysAgo(pastDay + 3),
+    });
+  }
+
   console.log("\n==================================================");
   console.log("✨ PropLead AI Seed Complete!");
   console.log("==================================================");
   console.log("🏢 Projects Seeded: 2 (Project 1 & Project 2)");
+  console.log("📖 Fact Sheet Entries Seeded: 22 (11 verified categories per project)");
   console.log(`📋 Total Leads Seeded: ${seededLeads.length} (including duplicates & exact test leads)`);
+  console.log(`📅 Visit Slots Seeded: ${insertedFutureSlots.length + 13} across next 14 days + past 30 days`);
   console.log("💰 Ad Spend Seeded: 3 Months across 4 channels (~Rs 30L/month)");
   console.log("--------------------------------------------------");
   console.log("🔑 DEMO LOGIN CREDENTIALS (All use password: " + FIXED_DEMO_PASSWORD + ")");

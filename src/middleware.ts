@@ -51,8 +51,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. EXECUTIVE ROUTES
-  if (pathname.startsWith("/executive") || pathname.startsWith("/api/executive")) {
+  // 2. EXECUTIVE ROUTES & PREVIEW HARNESS
+  if (
+    pathname.startsWith("/executive") ||
+    pathname.startsWith("/api/executive") ||
+    pathname.startsWith("/book-preview")
+  ) {
     if (!user) {
       if (isApiRoute) {
         return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
@@ -95,6 +99,8 @@ export const config = {
     "/api/admin/:path*",
     "/executive/:path*",
     "/api/executive/:path*",
+    "/book-preview/:path*",
+    "/book-preview",
     "/buyer/:path*",
     "/api/buyer/:path*",
     "/login",

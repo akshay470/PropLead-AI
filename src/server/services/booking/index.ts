@@ -511,10 +511,11 @@ export const bookingService = {
       .where(eq(bookings.id, bookingId))
       .returning();
 
-    // Update lead status
+    // Update lead status: 'visited' if attended, or reset to 'qualified' for follow-up if no-show
+    const newLeadStatus = outcome === "visited" ? ("visited" as const) : ("qualified" as const);
     await dbOrTx
       .update(leads)
-      .set({ status: outcome, updatedAt: new Date() })
+      .set({ status: newLeadStatus, updatedAt: new Date() })
       .where(eq(leads.id, row.leadId));
 
     return updatedBooking;
