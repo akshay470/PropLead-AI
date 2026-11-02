@@ -1,26 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
-import * as fs from "fs";
-import * as path from "path";
+import { applyMigrations } from "../helpers/db";
 
 describe("Database Migration Verification", () => {
-  it("should apply the full initial migration cleanly to a fresh PostgreSQL database", async () => {
+  it("should apply all migrations cleanly from /drizzle to a fresh PostgreSQL database", async () => {
     const pg = new PGlite();
 
-    const migrationPath = path.resolve(__dirname, "../../drizzle/0000_luxuriant_agent_zero.sql");
-    const migrationSql = fs.readFileSync(migrationPath, "utf-8");
-
-    // Split statements by drizzle-kit statement breakpoint
-    const statements = migrationSql
-      .split("--> statement-breakpoint")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-
-    expect(statements.length).toBeGreaterThan(10);
-
-    for (const statement of statements) {
-      await pg.exec(statement);
-    }
+    await applyMigrations(pg);
 
     // Verify key tables exist
     const tablesRes = await pg.query<{ table_name: string }>(
@@ -42,11 +28,17 @@ describe("Database Migration Verification", () => {
     expect(tableNames).toContain("ad_spend");
 
     // Verify partial unique index on bookings
-    const indexRes = await pg.query<{ indexname: string; indexdef: string }>(
+    const bookingIdxRes = await pg.query<{ indexname: string; indexdef: string }>(
       `SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'bookings' AND indexname = 'confirmed_slot_unique_idx';`
     );
-    expect(indexRes.rows.length).toBe(1);
-    expect(indexRes.rows[0].indexdef).toContain("WHERE (status = 'confirmed'::booking_status)");
+    expect(bookingIdxRes.rows.length).toBe(1);
+    expect(bookingIdxRes.rows[0].indexdef).toContain("WHERE (status = 'confirmed'::booking_status)");
+
+    // Verify executive slot uniqueness index
+    const slotIdxRes = await pg.query<{ indexname: string }>(
+      `SELECT indexname FROM pg_indexes WHERE tablename = 'visit_slots' AND indexname = 'executive_slot_start_unique_idx';`
+    );
+    expect(slotIdxRes.rows.length).toBe(1);
 
     await pg.close();
   });

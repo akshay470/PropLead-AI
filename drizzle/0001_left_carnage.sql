@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "executive_slot_start_unique_idx" ON "visit_slots" USING btree ("executive_id","starts_at");

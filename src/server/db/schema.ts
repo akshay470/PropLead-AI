@@ -200,6 +200,7 @@ export const visitSlots = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
+    uniqueIndex("executive_slot_start_unique_idx").on(table.executiveId, table.startsAt),
     index("slots_project_time_idx").on(table.projectId, table.startsAt),
     index("slots_status_idx").on(table.status),
     index("slots_executive_idx").on(table.executiveId),
