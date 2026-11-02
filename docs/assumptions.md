@@ -3,6 +3,10 @@
 This document records the operational, architectural, and regulatory assumptions made during the development of PropLead AI.
 
 ## 1. Regulatory & Compliance Assumptions
+- **Public Buyer Experience & DPDP Consent:**
+  - The buyer chat experience (`/chat` and `/api/chat/**`) is **strictly public** and requires no user registration, login, or session cookies.
+  - Before starting a chat, prospective buyers must explicitly toggle an affirmative DPDP Act 2023 consent checkbox. Once checked, the conversation begins and lead details are collected and stored/matched.
+  - An opt-out mechanism immediately flags `opted_out = true` on the lead record, halting any automated messaging, follow-ups, or reminders.
 - **RERA Registration Numbers:**
   - Standard Gujarat RERA format (`PR/GJ/AHMEDABAD/AHMEDABAD CITY/AUDA/RAA...`) is referenced using clearly marked placeholder test numbers (e.g. `PR/GJ/AHMEDABAD/AUDA/RAA00000/010125/TEST`).
   - All promotional copy and chat footers include the project RERA registration identifier and a mandatory statutory disclaimer that promotional details do not supersede registered approvals.
