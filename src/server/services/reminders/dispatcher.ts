@@ -9,6 +9,7 @@ import {
   users,
 } from "../../db/schema";
 import { messageService } from "../message-service";
+import { notificationTemplates } from "../notifications/templates";
 
 export interface DispatchRemindersResult {
   processed: number;
@@ -84,29 +85,23 @@ export const reminderService = {
         continue;
       }
 
-      // Format appointment time (IST)
-      const slotTime = new Date(item.slotStartsAt);
-      const timeStr = slotTime.toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-      const dateStr = slotTime.toLocaleDateString("en-IN", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-
-      const mapLink = `https://maps.google.com/?q=${item.projectLat},${item.projectLng}`;
-      const execName = item.executiveName || "Site Host";
-      const timingLabel = item.reminderType === "1_day" ? "tomorrow" : "in 2 hours";
+      // Build compliant reminder message from unified templates
+      const templateCtx = {
+        leadName: item.leadName,
+        projectName: item.projectName,
+        projectAddress: item.projectAddress,
+        projectLat: item.projectLat,
+        projectLng: item.projectLng,
+        projectRera: item.projectRera,
+        startsAt: item.slotStartsAt,
+        endsAt: item.slotEndsAt,
+        executiveName: item.executiveName || "Site Experience Host",
+      };
 
       const messageBody =
-        `Namaste ${item.leadName}! Reminder for your site visit at ${item.projectName} scheduled for ${timingLabel} (${dateStr} at ${timeStr}). ` +
-        `Your dedicated sales executive is ${execName}. ` +
-        `Site Location: ${mapLink} (${item.projectAddress}). ` +
-        `Gujarat RERA Reg: ${item.projectRera}. No promotional claims supersede registered approvals. ` +
-        `Reply STOP to opt out of reminders.`;
+        item.reminderType === "1_day"
+          ? notificationTemplates.visitReminder1Day(templateCtx)
+          : notificationTemplates.visitReminder2Hours(templateCtx);
 
       // Dispatch via mocked message log
       await messageService.sendMessage(

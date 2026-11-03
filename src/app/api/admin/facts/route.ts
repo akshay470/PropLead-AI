@@ -92,8 +92,8 @@ export async function POST(request: NextRequest) {
 
     const { projectId, category, questionKey, answerText } = parsed.data;
 
-    // Run statutory pricing guardrail check!
-    const guardrail = checkPriceGuardrails(answerText, "en");
+    // Run statutory pricing guardrail check scoped to the project!
+    const guardrail = checkPriceGuardrails(answerText, "en", projectId);
     if (!guardrail.passed) {
       return NextResponse.json(
         {

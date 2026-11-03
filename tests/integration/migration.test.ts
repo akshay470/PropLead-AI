@@ -26,6 +26,7 @@ describe("Database Migration Verification", () => {
     expect(tableNames).toContain("handoffs");
     expect(tableNames).toContain("message_log");
     expect(tableNames).toContain("ad_spend");
+    expect(tableNames).toContain("executive_projects");
 
     // Verify partial unique index on bookings
     const bookingIdxRes = await pg.query<{ indexname: string; indexdef: string }>(

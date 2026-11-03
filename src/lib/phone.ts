@@ -92,6 +92,25 @@ export function formatPhoneDisplay(e164Phone: string): string {
 }
 
 /**
+ * Privacy helper masking recipient phone numbers or emails to the last 4 digits.
+ * Example: "+919825012345" -> "+91 ******2345"
+ * Example: "buyer@example.com" -> "b***@example.com"
+ */
+export function maskRecipient(to: string): string {
+  if (!to) return "******";
+  const trimmed = to.trim();
+  const last4 = trimmed.slice(-4);
+  if (trimmed.startsWith("+91")) {
+    return `+91 ******${last4}`;
+  }
+  if (trimmed.includes("@")) {
+    const [user, domain] = trimmed.split("@");
+    return `${user.slice(0, 1)}***@${domain}`;
+  }
+  return `******${last4}`;
+}
+
+/**
  * Zod schema validator and transformer for phone numbers.
  */
 export const phoneSchema = z

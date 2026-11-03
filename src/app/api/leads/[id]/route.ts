@@ -8,6 +8,7 @@ import {
   handoffs,
   bookings,
   visitSlots,
+  reminders,
   conversations,
   messages,
 } from "@/server/db/schema";
@@ -119,6 +120,31 @@ export async function GET(
       .orderBy(desc(bookings.createdAt))
       .limit(1);
 
+    // Fetch reminder schedule for active booking
+    let bookingReminders: Array<{
+      id: string;
+      type: string;
+      scheduledAt: Date;
+      sentAt: Date | null;
+      status: string;
+      createdAt: Date;
+    }> = [];
+
+    if (activeBooking) {
+      bookingReminders = await db
+        .select({
+          id: reminders.id,
+          type: reminders.type,
+          scheduledAt: reminders.scheduledAt,
+          sentAt: reminders.sentAt,
+          status: reminders.status,
+          createdAt: reminders.createdAt,
+        })
+        .from(reminders)
+        .where(eq(reminders.bookingId, activeBooking.id))
+        .orderBy(asc(reminders.scheduledAt));
+    }
+
     // 6. Fetch Full Chat Transcript for this Lead
     const [conversation] = await db
       .select()
@@ -178,6 +204,7 @@ export async function GET(
       assignedExecutive,
       handoff: latestHandoff || null,
       booking: activeBooking || null,
+      reminders: bookingReminders,
       conversationId: conversation?.id || null,
       messages: chatMessages,
     });

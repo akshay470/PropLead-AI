@@ -8,9 +8,11 @@ import {
   visitSlots,
   bookings,
   reminders,
+  executiveProjects,
 } from "./schema";
 import { hashPassword } from "../auth/passwords";
 import { findDuplicate, DedupeLeadRecord } from "../services/leads/deduplication";
+import { createIstDate, getIstParts, getIstTomorrow } from "@/lib/timezone";
 import { eq, sql } from "drizzle-orm";
 
 const FIXED_DEMO_PASSWORD = "DemoPass123!";
@@ -37,6 +39,7 @@ export async function runSeed() {
 
   // 1. CLEANUP (Idempotency)
   console.log("🧹 Resetting existing tables...");
+  await db.delete(executiveProjects);
   await db.delete(reminders);
   await db.delete(bookings);
   await db.delete(visitSlots);
@@ -645,8 +648,17 @@ export async function runSeed() {
 
   await db.insert(factSheetEntries).values(factSheets);
 
-  // 9. SEED VISIT SLOTS & BOOKINGS
-  console.log("📅 Generating calendar slots and confirmed bookings...");
+  // 9. SEED EXECUTIVE PROJECT COVERAGE
+  console.log("👥 Assigning sales executives to project coverage...");
+  await db.insert(executiveProjects).values([
+    { executiveId: executiveUsers[0].id, projectId: project1.id },
+    { executiveId: executiveUsers[1].id, projectId: project1.id },
+    { executiveId: executiveUsers[2].id, projectId: project2.id },
+    { executiveId: executiveUsers[3].id, projectId: project2.id },
+  ]);
+
+  // 10. SEED VISIT SLOTS & BOOKINGS (Strictly Asia/Kolkata Business Hours: 10:00 to 18:00 IST)
+  console.log("📅 Generating calendar slots and confirmed bookings in Asia/Kolkata (IST)...");
 
   // Project 1 executives: Rajesh Sharma (0) and Ananya Shah (1)
   // Project 2 executives: Priya Patel (2) and Amit Joshi (3)
@@ -657,24 +669,21 @@ export async function runSeed() {
     { exec: executiveUsers[3], project: project2 },
   ];
 
-  const slotHours = [10, 11, 12, 14, 15, 16, 17]; // 10:00 to 18:00 (last slot at 17:00)
+  const slotHours = [10, 11, 12, 14, 15, 16, 17]; // 10:00 to 18:00 IST (last slot at 17:00 IST)
+  const nowParts = getIstParts(now);
 
-  // A. Generate future slots for next 14 days (excluding Sundays)
+  // A. Generate future slots for next 14 days in IST (excluding Sundays)
   const futureSlotsToInsert = [];
   for (let dayOffset = 1; dayOffset <= 14; dayOffset++) {
-    const slotDate = new Date(now);
-    slotDate.setDate(slotDate.getDate() + dayOffset);
-
-    // Skip Sundays (0)
-    if (slotDate.getDay() === 0) continue;
+    // Check weekday in IST
+    const testDate = createIstDate(nowParts.year, nowParts.month, nowParts.day + dayOffset, 12, 0, 0);
+    const { weekday } = getIstParts(testDate);
+    if (weekday === "Sun") continue;
 
     for (const coverage of execCoverage) {
       for (const hour of slotHours) {
-        const startsAt = new Date(slotDate);
-        startsAt.setHours(hour, 0, 0, 0);
-
-        const endsAt = new Date(slotDate);
-        endsAt.setHours(hour + 1, 0, 0, 0);
+        const startsAt = createIstDate(nowParts.year, nowParts.month, nowParts.day + dayOffset, hour, 0, 0);
+        const endsAt = createIstDate(nowParts.year, nowParts.month, nowParts.day + dayOffset, hour + 1, 0, 0);
 
         futureSlotsToInsert.push({
           projectId: coverage.project.id,
@@ -692,10 +701,8 @@ export async function runSeed() {
     .values(futureSlotsToInsert)
     .returning();
 
-  // B. Seed LD-58210 Hardik Patel's booking tomorrow at 11:00 with Rajesh Sharma (Project 1)
-  const tomorrow11AM = new Date(now);
-  tomorrow11AM.setDate(tomorrow11AM.getDate() + 1);
-  tomorrow11AM.setHours(11, 0, 0, 0);
+  // B. Seed LD-58210 Hardik Patel's booking tomorrow at 11:00 AM IST with Rajesh Sharma (Project 1)
+  const tomorrow11AM = getIstTomorrow(11, 0, now);
 
   // Find the exact matching slot in insertedFutureSlots
   const hardikSlot = insertedFutureSlots.find(
@@ -724,20 +731,13 @@ export async function runSeed() {
       status: "pending",
     });
 
-    console.log(`  ✓ LD-58210 booked slot ${hardikSlot.id} for tomorrow 11:00 (Taken, not free)`);
+    console.log(`  ✓ LD-58210 booked slot ${hardikSlot.id} for tomorrow 11:00 AM IST (Taken, not free)`);
   }
 
-  // C. Seed past visit slots & bookings for the last 30 days
-  const pastSlotsToInsert = [];
-  const pastBookingLinks = [];
-
-  // Seed Kavita Joshi's visit yesterday at 16:00 (visited)
-  const yesterday16SlotStart = new Date(now);
-  yesterday16SlotStart.setDate(yesterday16SlotStart.getDate() - 1);
-  yesterday16SlotStart.setHours(16, 0, 0, 0);
-
-  const yesterday16SlotEnd = new Date(yesterday16SlotStart);
-  yesterday16SlotEnd.setHours(17, 0, 0, 0);
+  // C. Seed past visit slots & bookings for the last 30 days (All strictly IST)
+  // Seed Kavita Joshi's visit yesterday at 16:00 IST (visited)
+  const yesterday16SlotStart = createIstDate(nowParts.year, nowParts.month, nowParts.day - 1, 16, 0, 0);
+  const yesterday16SlotEnd = createIstDate(nowParts.year, nowParts.month, nowParts.day - 1, 17, 0, 0);
 
   const [kavitaSlot] = await db
     .insert(visitSlots)
@@ -762,8 +762,8 @@ export async function runSeed() {
   for (let idx = 0; idx < pastSampleLeads.length; idx++) {
     const leadRecord = pastSampleLeads[idx];
     const pastDay = (idx * 2) + 2;
-    const slotStart = daysAgo(pastDay, 14, 0);
-    const slotEnd = daysAgo(pastDay, 15, 0);
+    const slotStart = createIstDate(nowParts.year, nowParts.month, nowParts.day - pastDay, 14, 0, 0);
+    const slotEnd = createIstDate(nowParts.year, nowParts.month, nowParts.day - pastDay, 15, 0, 0);
     const exec = executiveUsers[idx % executiveUsers.length];
     const proj = idx % 2 === 0 ? project1 : project2;
     const outcome = idx % 3 === 0 ? ("no_show" as const) : ("visited" as const);

@@ -223,7 +223,7 @@ describe("Admin & Executive RBAC, Fact Compliance, and Handoff Status Transition
         projectId: "a0000000-0000-0000-0000-000000000001",
         category: "pricing_and_unit_types",
         questionKey: "2bhk_price_range",
-        answerText: "2 BHK homes range from Rs 65 Lakh to Rs 76 Lakh depending on floor selection.",
+        answerText: "2 BHK homes range from Rs 75 Lakh to Rs 88 Lakh depending on floor selection.",
         updatedAt: new Date(),
       };
 

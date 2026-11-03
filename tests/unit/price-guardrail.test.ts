@@ -44,7 +44,9 @@ describe("Price and Compliance Output Guardrail", () => {
 
     it("Case 3: allows legitimate 3 BHK range up to 1.2 Crore", () => {
       const res = checkPriceGuardrails(
-        "3 BHK luxury apartments are priced between Rs 98 Lakh and Rs 1.20 Crore."
+        "Project 1 3 BHK luxury apartments are priced between Rs 98 Lakh and Rs 1.20 Crore.",
+        "en",
+        "project1"
       );
       expect(res.passed).toBe(true);
     });
@@ -282,6 +284,45 @@ describe("Price and Compliance Output Guardrail", () => {
       it("Case 38: flags single figure phrasing in Gujarati '65 લાખ રૂપિયામાં 2 બીએચકે'", () => {
         const res = checkPriceGuardrails("65 લાખ રૂપિયામાં 2 બીએચકે મળશે.", "gu");
         expect(res.passed).toBe(false);
+      });
+
+      // Step 6 Fix 1a: Per-project price guardrail tests
+      it("Case 39: flags Project 1 reply citing Rs 65 Lakh (which belongs exclusively to Project 2)", () => {
+        const res = checkPriceGuardrails(
+          "Project 1 apartments range from Rs 65 Lakh to Rs 76 Lakh.",
+          "en",
+          "project1"
+        );
+        expect(res.passed).toBe(false);
+        expect(res.reason).toContain("unauthorized_price_endpoint");
+      });
+
+      it("Case 40: allows Project 2 reply citing Rs 65 Lakh in compliant range (65L - 76L)", () => {
+        const res = checkPriceGuardrails(
+          "Project 2 apartments range from Rs 65 Lakh to Rs 76 Lakh.",
+          "en",
+          "project2"
+        );
+        expect(res.passed).toBe(true);
+      });
+
+      it("Case 41: flags price mention when project context is unknown (strict per-project validation)", () => {
+        const res = checkPriceGuardrails(
+          "Our residential apartments range from Rs 65 Lakh to Rs 76 Lakh."
+        );
+        expect(res.passed).toBe(false);
+        expect(res.reason).toContain("unknown project context");
+        expect(res.fallbackMessage).toBeDefined();
+      });
+
+      it("Case 42: flags Project 2 reply citing Project 1 price Rs 75 Lakh", () => {
+        const res = checkPriceGuardrails(
+          "Serene Meadows units range from Rs 75 Lakh to Rs 88 Lakh.",
+          "en",
+          "project2"
+        );
+        expect(res.passed).toBe(false);
+        expect(res.reason).toContain("unauthorized_price_endpoint");
       });
     });
   });

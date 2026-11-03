@@ -159,6 +159,7 @@ export const leads = pgTable(
     index("leads_source_idx").on(table.source),
     index("leads_status_idx").on(table.status),
     index("leads_executive_idx").on(table.assignedExecutiveId),
+    index("leads_created_idx").on(table.createdAt),
   ]
 );
 
@@ -198,11 +199,13 @@ export const visitSlots = pgTable(
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
     status: slotStatusEnum("status").default("available").notNull(),
+    blockedReason: text("blocked_reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex("executive_slot_start_unique_idx").on(table.executiveId, table.startsAt),
     index("slots_project_time_idx").on(table.projectId, table.startsAt),
+    index("slots_starts_at_idx").on(table.startsAt),
     index("slots_status_idx").on(table.status),
     index("slots_executive_idx").on(table.executiveId),
   ]
@@ -390,12 +393,35 @@ export const rateLimitBuckets = pgTable(
 );
 
 // ==========================================
+// 14. EXECUTIVE PROJECT COVERAGE
+// ==========================================
+export const executiveProjects = pgTable(
+  "executive_projects",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    executiveId: uuid("executive_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("exec_project_unique_idx").on(table.executiveId, table.projectId),
+    index("exec_projects_exec_idx").on(table.executiveId),
+    index("exec_projects_proj_idx").on(table.projectId),
+  ]
+);
+
+// ==========================================
 // RELATIONS
 // ==========================================
 export const usersRelations = relations(users, ({ many }) => ({
   assignedLeads: many(leads),
   visitSlots: many(visitSlots),
   handoffs: many(handoffs),
+  projectCoverages: many(executiveProjects),
 }));
 
 export const projectsRelations = relations(projects, ({ many }) => ({
@@ -403,6 +429,18 @@ export const projectsRelations = relations(projects, ({ many }) => ({
   factSheetEntries: many(factSheetEntries),
   visitSlots: many(visitSlots),
   conversations: many(conversations),
+  executiveCoverages: many(executiveProjects),
+}));
+
+export const executiveProjectsRelations = relations(executiveProjects, ({ one }) => ({
+  executive: one(users, {
+    fields: [executiveProjects.executiveId],
+    references: [users.id],
+  }),
+  project: one(projects, {
+    fields: [executiveProjects.projectId],
+    references: [projects.id],
+  }),
 }));
 
 export const leadsRelations = relations(leads, ({ one, many }) => ({

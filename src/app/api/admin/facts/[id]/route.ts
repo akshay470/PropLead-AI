@@ -44,9 +44,20 @@ export async function PUT(
 
     const { category, questionKey, answerText } = parsed.data;
 
-    // Check guardrail if answerText is changing
+    // Fetch existing fact entry to verify existence & get projectId
+    const [existing] = await db
+      .select({ id: factSheetEntries.id, projectId: factSheetEntries.projectId })
+      .from(factSheetEntries)
+      .where(eq(factSheetEntries.id, params.id))
+      .limit(1);
+
+    if (!existing) {
+      return NextResponse.json({ success: false, error: "Fact entry not found" }, { status: 404 });
+    }
+
+    // Check guardrail scoped to project if answerText is changing
     if (answerText) {
-      const guardrail = checkPriceGuardrails(answerText, "en");
+      const guardrail = checkPriceGuardrails(answerText, "en", existing.projectId);
       if (!guardrail.passed) {
         return NextResponse.json(
           {

@@ -66,13 +66,25 @@ All seeded staff and demo accounts use password: `DemoPass123!`
 
 ### 6. Available Screens & Roles
 - **Public Buyer Assistant:** `/chat` (Public, affirmative DPDP consent, multilingual qualification, RERA disclosures, day-grouped slot picker, booking confirmation cards, session persistence)
+- **Executive Source Dashboard:** `/admin/dashboard` (Admin-only performance & economics dashboard. 7/30/90-day filter, comparison to pre-AI developer baselines [14h response & 35% unreached], Speed-to-Lead SLA breakdown, SVG response time trend & cost-per-visit charts with accessible table fallback, by-source economics table [portals, social, website, hoardings] with best/worst conversion badges, "How this is calculated" methodology modal, and "Send Due Reminders Now" demo action)
+- **Executive Personal Dashboard:** `/executive/dashboard` (Trimmed view for logged-in sales executives showing individual response latency, assigned unique leads, completed visits, and personal show-up rate)
+- **Admin Slot & Rota Scheduling:** `/admin/slots` (Weekly appointment schedule editor and rota grid. Week navigation [previous, next, today], project/executive filters, free/booked/blocked indicators with buyer details and block reasons, idempotent slot generator modal [ON CONFLICT DO NOTHING], individual slot or full-day block modal, executive project coverage editor, and project location / GPS pin editor with live Google Maps preview)
+- **Admin Message Audit Log:** `/admin/messages` (Read-only statutory message log. Filter by channel and status, table with masked recipients [`+91 ******1234`] for DPDP compliance, template version names [`v1.2.0`], and inspection modal displaying full rendered notification text)
 - **Executive Leads Queue:** `/executive/leads` (Unified intake, real-time deduplication, manual merge/unlink, fast-response badges, links to lead views)
-- **Executive Lead Detail:** `/executive/leads/[id]` (Complete buyer dossier, DO NOT CONTACT compliance banner, tap-to-call, AI handoff brief card, booking actions, full chat transcript with quiet tool events)
+- **Executive Lead Detail:** `/executive/leads/[id]` (Complete buyer dossier, DO NOT CONTACT compliance banner, tap-to-call, AI handoff brief card, booking actions, automated WhatsApp reminder timeline, full chat transcript with quiet tool events)
 - **Executive Handoff Inbox:** `/executive/handoffs` (Open/Done tabs, AI handoff briefing cards, status transitions `open` -> `contacted` -> `resolved`, direct link to lead view)
 - **Executive Site Visits:** `/executive/visits` (Upcoming & past visits, tap-to-call, Google Maps pins, Mark Visited / No-Show, Reschedule modal)
 - **Sales Head Flagged Chat Review:** `/admin/review` (Daily digest metrics: flagged today, reviewed today, pending; highlighted offending trigger, full transcript toggle, audit notes, executive reassignment, "Add to Fact Sheet" navigation)
 - **Sales Head Fact Sheet Editor:** `/admin/facts` (Knowledge base ground truth, project and category filters, search bar, Add Fact modal with prefill support from review queue, Edit/Delete, active RERA price guardrail compliance validation)
 - **Interactive Booking Harness:** `/book-preview` (Interactive testing harness for slot selection, concurrency conflicts, and .ics calendar downloads)
+
+### 7. Timezone & Cron Scheduling
+- **Timezone Invariance:** All business operations run strictly in **`Asia/Kolkata` (IST = UTC+05:30)**. Stored in UTC in Postgres, but slot boundaries (10:00 to 18:00 IST), reminder offsets, .ics timestamps, and metrics are calculated in `Asia/Kolkata`.
+- **Dual Cron on Free Hosting:**
+  - `vercel.json` provides a daily safety cron (`0 0 * * *`) calling `GET /api/cron/reminders`.
+  - `.github/workflows/reminders.yml` runs every 15 minutes (`*/15 * * * *`) via GitHub Actions, calling `${{ secrets.APP_URL }}/api/cron/reminders` with `${{ secrets.CRON_SECRET }}`.
+  - `POST /api/admin/reminders/run` provides an admin-only trigger button on `/admin/dashboard` for live presentations and fallback.
+- **Detailed Metrics Methodology:** See [`docs/metrics.md`](./docs/metrics.md) for mathematical definitions and zero-division safeguards.
 
 ### 7. Running the Application
 ```bash

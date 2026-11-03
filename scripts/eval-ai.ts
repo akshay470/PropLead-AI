@@ -412,6 +412,7 @@ async function main() {
   const [p1] = await testDb
     .insert(schema.projects)
     .values({
+      id: "a0000000-0000-0000-0000-000000000001",
       name: "The Grand Orchard",
       reraNumber: "PR/GJ/AHMEDABAD/DEMO-0001",
       locationName: "Bodakdev",

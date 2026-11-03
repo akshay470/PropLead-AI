@@ -13,10 +13,11 @@ export const MAX_ALLOWED_PRICE_LAKHS = 120;
 // Registered Fact Sheet Price Range Endpoints (in Lakhs INR)
 // Project 1: 2 BHK: 75L–88L; 3 BHK: 98L–120L (1.20 Cr)
 // Project 2: 2 BHK: 65L–76L; 3 BHK: 85L–105L (1.05 Cr)
+// Intersection of Project 1 and Project 2 endpoints is empty ([])
 export const FACT_SHEET_PRICE_ENDPOINTS: Record<string, number[]> = {
   project1: [75, 88, 98, 120],
   project2: [65, 76, 85, 105],
-  all: [65, 75, 76, 85, 88, 98, 105, 120],
+  both: [], // Strict intersection: no overlapping endpoints between Project 1 and Project 2
 };
 
 export const SAFE_PRICE_FALLBACK = {
@@ -212,27 +213,77 @@ export function checkPriceGuardrails(
     };
   }
 
-  // 5. Resolve allowed endpoints for the given project and check exact match
-  const normalizedProject =
-    projectContext === "project1" ||
-    projectContext?.toLowerCase().includes("project 1") ||
-    projectContext?.toLowerCase().includes("grand orchard")
-      ? "project1"
-      : projectContext === "project2" ||
-        projectContext?.toLowerCase().includes("project 2") ||
-        projectContext?.toLowerCase().includes("serene meadows")
-      ? "project2"
-      : "all";
+  // 5. Resolve allowed endpoints for the given project (strictly scoped)
+  let normalizedProject: "project1" | "project2" | "unknown" = "unknown";
 
+  const lowerContext = (projectContext || "").toLowerCase();
+  const lowerReply = replyText.toLowerCase();
+
+  // Check explicit projectContext (by id, key, or name)
+  if (
+    lowerContext === "project1" ||
+    lowerContext === "a0000000-0000-0000-0000-000000000001" ||
+    lowerContext.includes("project 1") ||
+    lowerContext.includes("grand orchard") ||
+    lowerContext.includes("bodakdev") ||
+    lowerContext.includes("प्रोजेक्ट 1")
+  ) {
+    normalizedProject = "project1";
+  } else if (
+    lowerContext === "project2" ||
+    lowerContext === "a0000000-0000-0000-0000-000000000002" ||
+    lowerContext.includes("project 2") ||
+    lowerContext.includes("serene meadows") ||
+    lowerContext.includes("shela") ||
+    lowerContext.includes("bopal") ||
+    lowerContext.includes("પ્રૉજેક્ટ 2") ||
+    lowerContext.includes("પ્રોજેક્ટ 2") ||
+    lowerContext.includes("प्रोजेक्ट 2")
+  ) {
+    normalizedProject = "project2";
+  } else {
+    // If projectContext is not provided or generic, infer from reply text
+    const mentionsP1 =
+      lowerReply.includes("project 1") ||
+      lowerReply.includes("grand orchard") ||
+      lowerReply.includes("bodakdev") ||
+      lowerReply.includes("प्रोजेक्ट 1") ||
+      lowerReply.includes("પ્રોજેક્ટ 1");
+
+    const mentionsP2 =
+      lowerReply.includes("project 2") ||
+      lowerReply.includes("serene meadows") ||
+      lowerReply.includes("shela") ||
+      lowerReply.includes("પ્રૉજેક્ટ 2") ||
+      lowerReply.includes("પ્રોજેક્ટ 2") ||
+      lowerReply.includes("प्रोजेक्ट 2");
+
+    if (mentionsP1 && !mentionsP2) {
+      normalizedProject = "project1";
+    } else if (mentionsP2 && !mentionsP1) {
+      normalizedProject = "project2";
+    } else {
+      normalizedProject = "unknown";
+    }
+  }
+
+  // Allowed endpoints: strictly project endpoints if known, or intersection (both) if unknown
   const allowedEndpoints =
-    FACT_SHEET_PRICE_ENDPOINTS[normalizedProject] || FACT_SHEET_PRICE_ENDPOINTS.all;
+    normalizedProject === "project1"
+      ? FACT_SHEET_PRICE_ENDPOINTS.project1
+      : normalizedProject === "project2"
+      ? FACT_SHEET_PRICE_ENDPOINTS.project2
+      : FACT_SHEET_PRICE_ENDPOINTS.both;
 
   for (const amt of extractedLakhs) {
     const matchesEndpoint = allowedEndpoints.some((ep) => Math.abs(amt - ep) < 0.15);
     if (!matchesEndpoint) {
       return {
         passed: false,
-        reason: `unauthorized_price_endpoint (${amt}L is not a registered fact sheet range endpoint)`,
+        reason:
+          normalizedProject === "unknown"
+            ? `unauthorized_price_endpoint (${amt}L cited with unknown project context; price endpoints must match specific project)`
+            : `unauthorized_price_endpoint (${amt}L is not a registered fact sheet range endpoint for ${normalizedProject})`,
         violatingSnippet: `${amt} Lakhs`,
         fallbackMessage: fallback,
       };

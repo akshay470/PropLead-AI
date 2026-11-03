@@ -95,17 +95,51 @@ This document records the operational, architectural, and regulatory assumptions
   - Lifecycle: `open` -> `contacted` -> `resolved`, with executive audit notes.
   - Idempotent: Subsequent handoff requests within a 2-hour window reuse the existing open handoff record.
 
-## 6. Screens & Access Control
+## 6. Business Timezone, Scheduling & Cron Architecture (Step 6)
+- **Timezone Invariance (Asia/Kolkata, UTC+05:30):**
+  - All real estate development, sales gallery hours, site visit appointments, reminder triggers, and performance aggregations run in **Asia/Kolkata** (IST).
+  - While PostgreSQL stores standardized UTC timestamps, all date math ("tomorrow", "start of day", "24 hours prior", "2 hours prior", slot hours 10:00 to 18:00 IST) is calculated explicitly using `@/lib/timezone.ts`.
+  - Machine independence: The entire codebase produces identical results whether executing in local IST, on a UTC serverless runtime (e.g. Vercel), or across different host operating systems.
+  - The iCalendar (.ics) exports format calendar dates using strict UTC strings (`YYYYMMDDTHHMMSSZ`) to guarantee that buyer calendar apps (Google Calendar, Apple Calendar, Outlook) render the site visit at the exact scheduled IST time.
+- **Dual Cron Architecture for Free Hosting:**
+  - Vercel Hobby accounts enforce a strict limit of one scheduled cron job per day.
+  - `vercel.json` defines a daily safety cron (`0 0 * * *`) calling `GET /api/cron/reminders`.
+  - For continuous operational precision (15-minute polling intervals for 2-hour and 24-hour reminders), PropLead AI provides `.github/workflows/reminders.yml`, an automated GitHub Actions cron workflow running every 15 minutes (`*/15 * * * *`). It authorizes via repository secrets `APP_URL` and `CRON_SECRET`.
+  - For live interactive demonstrations and fallbacks, `POST /api/admin/reminders/run` provides an admin-authenticated trigger with a "Send Due Reminders Now" button on `/admin/dashboard`.
+- **Statutory Notification Templates (v1.2.0):**
+  - All outbound message templates (`1-day reminder`, `2-hour reminder`, `booking confirmation`, `reschedule`, `cancellation`, and `opt-out confirmation`) are consolidated in `src/server/services/notifications/templates.ts`.
+  - Every reminder strictly contains:
+    1. Residential project name.
+    2. Appointment date and time in IST (e.g. "Wed, 4 Nov 2026 at 11:00 AM IST").
+    3. Dedicated sales executive name.
+    4. Google Maps live GPS navigation pin link.
+    5. Approved Gujarat RERA registration number.
+    6. DPDP statutory opt-out instruction ("Reply STOP to opt out").
+- **Admin Slot & Rota Scheduling (`/admin/slots`):**
+  - Week-by-week rota grid organized by hour (10:00 to 18:00 IST, 60-min slots) and day (Mon–Sun).
+  - **Idempotent Slot Generation:** Backed by database unique index `(executive_id, starts_at)` and `ON CONFLICT DO NOTHING`. Re-running slot generation over overlapping date ranges creates only new slots and cleanly skips existing ones without throwing errors or creating duplicates.
+  - **Booking Protection on Slot Mutation:** Visit slots with active confirmed bookings can NEVER be deleted or blocked. The system rejects such mutations with an explicit error, directing administrators to reschedule or cancel the booking through the visits dashboard first, preventing orphaned bookings.
+  - **Executive Project Coverage:** Configures which residential projects each sales executive attends visits for.
+  - **Project Location & GPS Pins:** Coordinates (lat/lng) and physical addresses can be edited directly with a live "Open in Google Maps" verification link.
+- **Outbound Message Audit Log (`/admin/messages`):**
+  - Read-only statutory log of all outgoing notifications dispatched via WhatsApp, SMS, or email.
+  - **Privacy Masking:** Recipient contact numbers are masked to the last 4 digits (e.g., `+91 ******1234` or `a***@example.com`) to protect buyer personal data in accordance with DPDP Act 2023.
+
+## 7. Screens & Access Control
 - **Session Tokens & Cookie Policy:**
   - User authentication relies on secure, `HttpOnly`, `SameSite=Lax` cookies containing encrypted JWT tokens (via `jose`).
   - Role hierarchy:
-    - `admin`: Full administrative access (fact sheets, slot inventory, review queue, metrics, executive tools).
-    - `executive`: Lead pipeline, assigned visit schedules, handoff summaries, lead detail.
+    - `admin`: Full administrative access (dashboard analytics, fact sheets, slot inventory, rota generation, coverage, review queue, message audit log).
+    - `executive`: Personal performance dashboard, lead pipeline, assigned visit schedules, handoff summaries, lead detail.
     - `buyer`: Lead qualification, interactive assistant, visit booking management (no login required on `/chat`).
 - **Screen Inventory:**
   - `/chat`: Public buyer experience. Warm ivory `#FAF8F5`, bronze `#8C653D` accents, Noto Sans fallback stack, persistent "Talk to a person" header button, day-grouped slot chips, inline `BookingConfirmationCard`, multilingual UI strings (en/hi/gu), DPDP consent screen with persistent "Stop messages" confirmation modal, session resume from `/api/chat/history`, 429 rate limit warning, retry handling, 44px min tap targets.
+  - `/admin/dashboard`: Executive sales performance & attribution dashboard. Range switcher (7 / 30 / 90 days), primary KPI comparison cards against pre-AI developer baselines ("Before: 14 h / 35%"), Speed-to-Lead SLA breakdown (&le; 2m, &le; 5m, unreached 48h), SVG response time trend line and cost-per-visit bar charts with accessible table toggle, by-source economics table (portals, social, website, hoardings) with best/worst conversion badges, "How this is calculated" methodology modal, and live "Send Due Reminders Now" trigger.
+  - `/executive/dashboard`: Trimmed personal performance view for logged-in sales executives showing individual response latency, assigned unique leads, completed visits, and personal show-up rate.
+  - `/admin/slots`: Weekly appointment schedule editor and rota grid. Week navigation (previous, next, today), project/executive filters, free/booked/blocked indicators with buyer details and block reasons, idempotent slot generator modal, individual slot or full-day block modal, executive project coverage editor, and project location / GPS pin editor with live Google Maps preview.
+  - `/admin/messages`: Read-only message log viewer. Filter by channel and status, table with masked recipients (`+91 ******1234`), template version names, and inspection modal displaying full rendered notification text with statutory disclosures.
   - `/executive/leads`: Unified leads list with status filtering, duplicate linking/unlinking, and direct navigation to lead details.
-  - `/executive/leads/[id]`: Comprehensive lead detail view with "DO NOT CONTACT" banner if opted-out, phone tap-to-call, AI handoff brief card, booking card with mark visited/no-show/cancel, and full chat transcript with quiet tool events.
+  - `/executive/leads/[id]`: Comprehensive lead detail view with "DO NOT CONTACT" banner if opted-out, phone tap-to-call, AI handoff brief card, booking card with mark visited/no-show/cancel, automated reminder timeline (WhatsApp), and full chat transcript with quiet tool events.
   - `/executive/handoffs`: Sales executive handoff inbox with Open/Done tabs, reason badges, time ago, summary cards, status update modal (`open` -> `contacted` -> `resolved`), and link to lead view.
   - `/executive/visits`: Executive calendar and visit slot scheduler with race-condition prevention.
   - `/admin/review`: Sales Head flagged chat review queue with daily digest metrics cards (flagged today, reviewed today, pending review), reason badges, highlighted offending trigger, transcript toggle, mark reviewed modal with audit notes, executive reassignment, and "Add to Fact Sheet" navigation.

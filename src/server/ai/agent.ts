@@ -1,5 +1,5 @@
 import { db } from "@/server/db";
-import { messages, conversations, leads } from "@/server/db/schema";
+import { messages, conversations, leads, projects } from "@/server/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { ILlmProvider, ChatMessage } from "./types";
 import { getLlmProvider } from "./provider";
@@ -128,10 +128,13 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<RunAge
     .select({
       id: leads.id,
       projectId: leads.projectId,
+      projectName: projects.name,
+      projectLocation: projects.locationName,
       optedOut: leads.optedOut,
       firstResponseAt: leads.firstResponseAt,
     })
     .from(leads)
+    .leftJoin(projects, eq(leads.projectId, projects.id))
     .where(eq(leads.id, options.leadId))
     .limit(1);
 
@@ -327,10 +330,17 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<RunAge
   }
 
   // 5. Output Guardrail (Pre-delivery verification)
+  const resolvedProjectContext =
+    leadRecord?.projectName ||
+    leadRecord?.projectLocation ||
+    leadRecord?.projectId ||
+    options.userMessage ||
+    undefined;
+
   const guardrailCheck = checkPriceGuardrails(
     finalReplyText,
     detectedLanguage,
-    leadRecord?.projectId || undefined
+    resolvedProjectContext
   );
   if (!guardrailCheck.passed) {
     console.warn(

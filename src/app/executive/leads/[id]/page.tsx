@@ -51,6 +51,13 @@ interface LeadDetailData {
     endsAt: string;
     createdAt: string;
   } | null;
+  reminders?: Array<{
+    id: string;
+    type: string;
+    scheduledAt: string;
+    sentAt: string | null;
+    status: string;
+  }>;
   messages: Array<{
     id: string;
     role: string;
@@ -458,6 +465,81 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                     </button>
                   </div>
                 )}
+
+                {/* Reminder Schedule Timeline */}
+                <div className="pt-3 border-t border-[#EBE7DF]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase tracking-wider font-semibold text-stone-500">
+                      Automated Reminder Timeline (WhatsApp)
+                    </span>
+                    <span className="text-[10px] text-stone-400 font-mono">v1.2.0 Statutory</span>
+                  </div>
+
+                  {lead.optedOut ? (
+                    <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-[11px] text-red-800">
+                      Reminders halted: Buyer opted out of communications under DPDP Act 2023.
+                    </div>
+                  ) : data.reminders && data.reminders.length > 0 ? (
+                    <div className="space-y-2">
+                      {data.reminders.map((rem) => {
+                        const is24h = rem.type === "one_day_before";
+                        const scheduledDate = new Date(rem.scheduledAt);
+                        const isSent = rem.status === "sent";
+
+                        return (
+                          <div
+                            key={rem.id}
+                            className="p-2.5 rounded-lg bg-stone-50 border border-stone-200/80 flex items-center justify-between text-xs"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`w-2 h-2 rounded-full ${
+                                  isSent
+                                    ? "bg-emerald-500"
+                                    : rem.status === "pending"
+                                    ? "bg-amber-500 animate-pulse"
+                                    : "bg-stone-300"
+                                }`}
+                              />
+                              <div>
+                                <span className="font-medium text-stone-900">
+                                  {is24h ? "1-Day Reminder" : "2-Hour Reminder"}
+                                </span>
+                                <span className="text-stone-400 ml-1.5 font-mono text-[11px]">
+                                  {scheduledDate.toLocaleTimeString("en-IN", {
+                                    timeZone: "Asia/Kolkata",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                  })}{" "}
+                                  IST
+                                </span>
+                              </div>
+                            </div>
+
+                            <div>
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                                  isSent
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : rem.status === "pending"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-stone-200 text-stone-600"
+                                }`}
+                              >
+                                {rem.status}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-stone-400 italic">
+                      No automated reminders scheduled for this appointment.
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="mt-4 text-center py-6 text-xs text-[#7A7973]">
