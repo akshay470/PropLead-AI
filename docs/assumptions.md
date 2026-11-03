@@ -72,28 +72,44 @@ This document records the operational, architectural, and regulatory assumptions
 - **Code-Level Output Guardrail (Price & Claims Inspection):**
   - Prompt instructions alone are insufficient for real estate compliance. PropLead AI uses an algorithmic post-generation code guardrail (`src/server/ai/guardrails/price-checker.ts`) that inspects every assistant message before it reaches the buyer.
   - Regex AST & Unicode script boundaries detect any attempt to offer discounts, negotiate, confirm final pricing, or make speculative guarantees across English, Hindi (e.g. `छूट`, `सौदा`, `गारंटी`), and Gujarati (e.g. `સસ્તી`, `છૂટ`, `ખાતરી`).
-  - Strict price bounds validation: Parsed rupee figures must fall within the developer's registered portfolio band (Rs 65 Lakh to Rs 1.20 Crore).
-  - Any violation immediately replaces the assistant's reply with a neutral, RERA-grounded compliance disclaimer, records the violation in the message payload, flags the conversation, and dispatches a high-priority handoff to a sales executive.
-- **Rate Limiting & Abuse Prevention:**
-  - In-memory sliding window rate limiter protects endpoints:
-    - 15 requests / minute per active lead session.
-    - 30 requests / minute per client IP address.
-  - HTTP 429 is returned gracefully with localized retry suggestions when thresholds are exceeded.
+  - **Tightened Price Guardrail:** Rupee amounts must strictly match registered BHK price endpoints ([65, 75, 76, 85, 88, 98, 105, 120] Lakhs) from the project fact sheets, rather than arbitrary numbers within the band. Phrasing that presents a single figure as the price ("priced at", "costs exactly", "final price") without a clear range is immediately flagged.
+  - Any violation replaces the assistant's reply with a neutral, RERA-grounded compliance disclaimer, records the violation in the message payload, flags the conversation, and dispatches a high-priority handoff to a sales executive.
+- **DPDP Opt-Out Detection:**
+  - Precise keyword and phrase matching: triggers only on exact keywords (`STOP`, `UNSUBSCRIBE`, `बंद करो`, `रोकें`, `रोको`, `રોકો`, `બંધ કરો`) or clear phrases like `stop messaging me` / `मुझे मैसेज मत भेजो`.
+  - Words like "cancel" / "रद्द" / "રદ" inside visit requests (e.g., "cancel my visit" or "मेरी विजिट रद्द करें") do NOT opt out. Ambiguous queries trigger a polite confirmation prompt before opting out.
+- **DB-Backed Atomic Rate Limiter:**
+  - PostgreSQL-backed rate limiter (`rate_limit_buckets` table) ensuring rate limits hold across serverless and multi-instance deployments:
+    - 15 messages / minute per lead chat session.
+    - 30 messages / minute per client IP address.
+  - Gracefully falls back to in-memory sliding window if the database is temporarily unreachable.
+  - HTTP 429 returns clear localized retry warnings with countdown timers.
+- **Autonomous AI Evals Suite:**
+  - `docs/ai-evals.md` tracks all 25 automated evaluation scenarios across compliance, prompt injection resistance, multilingual comprehension (en/hi/gu/hinglish), and tool calling.
+  - Every eval run explicitly documents provider, model name (`MOCK: deterministic-mock-v1` or `GEMINI: gemini-2.5-flash`), and execution timestamp. Mock-dependent edge cases are isolated in unit tests.
 - **Session Security & Booking Lead Authorization:**
   - Public prospective buyers obtain a signed, HTTP-only JWT cookie (`proplead_lead_session`, 24h validity) upon starting a chat (`/api/chat/start`).
   - All public booking actions (`POST /api/bookings`, `/cancel`, `/reschedule`) cryptographically derive `leadId` directly from the verified session token. Any `leadId` supplied in the JSON request body is strictly discarded for buyer sessions to prevent account impersonation or unauthorized booking mutations.
-- **Executive Handoff Logic:**
-  - Handoff requests assign the lead to their currently assigned sales executive. If unassigned, the system automatically selects the executive with the lowest count of open active leads.
-  - Generates structured contextual summaries (buyer sentiment, preferred BHK, budget range, key inquiries, open questions, and recommended next action) with fallback if LLM summarization is unavailable.
+- **Executive Handoff Logic & Status Lifecycle:**
+  - Handoff requests assign the lead to their currently assigned sales executive or auto-assign via round-robin.
+  - Generates structured contextual summaries (buyer sentiment, preferred BHK, budget range, key inquiries, open questions, and recommended next action).
+  - Lifecycle: `open` -> `contacted` -> `resolved`, with executive audit notes.
   - Idempotent: Subsequent handoff requests within a 2-hour window reuse the existing open handoff record.
 
-## 6. Demo Credentials & Interactive Preview
+## 6. Screens & Access Control
 - **Session Tokens & Cookie Policy:**
   - User authentication relies on secure, `HttpOnly`, `SameSite=Lax` cookies containing encrypted JWT tokens (via `jose`).
   - Role hierarchy:
     - `admin`: Full administrative access (fact sheets, slot inventory, review queue, metrics, executive tools).
-    - `executive`: Lead pipeline, assigned visit schedules, handoff summaries.
-    - `buyer`: Lead qualification, interactive assistant, visit booking management.
+    - `executive`: Lead pipeline, assigned visit schedules, handoff summaries, lead detail.
+    - `buyer`: Lead qualification, interactive assistant, visit booking management (no login required on `/chat`).
+- **Screen Inventory:**
+  - `/chat`: Public buyer experience. Warm ivory `#FAF8F5`, bronze `#8C653D` accents, Noto Sans fallback stack, persistent "Talk to a person" header button, day-grouped slot chips, inline `BookingConfirmationCard`, multilingual UI strings (en/hi/gu), DPDP consent screen with persistent "Stop messages" confirmation modal, session resume from `/api/chat/history`, 429 rate limit warning, retry handling, 44px min tap targets.
+  - `/executive/leads`: Unified leads list with status filtering, duplicate linking/unlinking, and direct navigation to lead details.
+  - `/executive/leads/[id]`: Comprehensive lead detail view with "DO NOT CONTACT" banner if opted-out, phone tap-to-call, AI handoff brief card, booking card with mark visited/no-show/cancel, and full chat transcript with quiet tool events.
+  - `/executive/handoffs`: Sales executive handoff inbox with Open/Done tabs, reason badges, time ago, summary cards, status update modal (`open` -> `contacted` -> `resolved`), and link to lead view.
+  - `/executive/visits`: Executive calendar and visit slot scheduler with race-condition prevention.
+  - `/admin/review`: Sales Head flagged chat review queue with daily digest metrics cards (flagged today, reviewed today, pending review), reason badges, highlighted offending trigger, transcript toggle, mark reviewed modal with audit notes, executive reassignment, and "Add to Fact Sheet" navigation.
+  - `/admin/facts`: Fact Sheet & Knowledge Base Editor with project and category filters, search bar, Add Fact modal (prefilled via query params from review queue), Edit/Delete actions with confirm, and active RERA price guardrail compliance validation.
 - **Demo Accounts (Seeded via `pnpm run seed`):**
   - **Shared Demo Password:** `DemoPass123!`
   - **Sales Head (Admin):** `admin@example.com`

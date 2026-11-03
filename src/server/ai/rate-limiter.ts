@@ -76,7 +76,6 @@ export async function checkDbRateLimit(
   key: string,
   maxRequests: number,
   windowMs: number = 60000,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dbOrTx: any = db
 ): Promise<RateLimitResult> {
   const now = new Date();
@@ -154,13 +153,11 @@ export async function checkDbRateLimit(
 }
 
 // 15 messages per minute per session
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function checkSessionRateLimit(sessionId: string, dbOrTx?: any): Promise<RateLimitResult> {
   return checkDbRateLimit(`sess_${sessionId}`, 15, 60000, dbOrTx);
 }
 
 // 30 messages per minute per IP
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function checkIpRateLimit(ip: string, dbOrTx?: any): Promise<RateLimitResult> {
   return checkDbRateLimit(`ip_${ip}`, 30, 60000, dbOrTx);
 }

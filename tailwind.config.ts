@@ -48,7 +48,18 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "system-ui", "-apple-system", "sans-serif"],
+        sans: [
+          "var(--font-sans)",
+          "Noto Sans",
+          "Noto Sans Devanagari",
+          "Noto Sans Gujarati",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif",
+        ],
         serif: ["var(--font-serif)", "Georgia", "serif"],
       },
       borderRadius: {

@@ -65,11 +65,14 @@ All seeded staff and demo accounts use password: `DemoPass123!`
 - **Demo Buyer:** `buyer@example.com`
 
 ### 6. Available Screens & Roles
-- **Public Buyer Assistant:** `/chat` (Public, affirmative DPDP consent, multilingual qualification, RERA disclosures)
-- **Executive Leads Queue:** `/executive/leads` (Unified intake, real-time deduplication, manual merge/unlink, fast-response badges)
+- **Public Buyer Assistant:** `/chat` (Public, affirmative DPDP consent, multilingual qualification, RERA disclosures, day-grouped slot picker, booking confirmation cards, session persistence)
+- **Executive Leads Queue:** `/executive/leads` (Unified intake, real-time deduplication, manual merge/unlink, fast-response badges, links to lead views)
+- **Executive Lead Detail:** `/executive/leads/[id]` (Complete buyer dossier, DO NOT CONTACT compliance banner, tap-to-call, AI handoff brief card, booking actions, full chat transcript with quiet tool events)
+- **Executive Handoff Inbox:** `/executive/handoffs` (Open/Done tabs, AI handoff briefing cards, status transitions `open` -> `contacted` -> `resolved`, direct link to lead view)
 - **Executive Site Visits:** `/executive/visits` (Upcoming & past visits, tap-to-call, Google Maps pins, Mark Visited / No-Show, Reschedule modal)
+- **Sales Head Flagged Chat Review:** `/admin/review` (Daily digest metrics: flagged today, reviewed today, pending; highlighted offending trigger, full transcript toggle, audit notes, executive reassignment, "Add to Fact Sheet" navigation)
+- **Sales Head Fact Sheet Editor:** `/admin/facts` (Knowledge base ground truth, project and category filters, search bar, Add Fact modal with prefill support from review queue, Edit/Delete, active RERA price guardrail compliance validation)
 - **Interactive Booking Harness:** `/book-preview` (Interactive testing harness for slot selection, concurrency conflicts, and .ics calendar downloads)
-- **Sales Head Admin:** `/admin` (Fact sheet editor, slot inventory, review queues, channel performance)
 
 ### 7. Running the Application
 ```bash

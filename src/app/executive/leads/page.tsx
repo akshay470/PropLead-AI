@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { formatPhoneDisplay } from "@/lib/phone";
 
 interface LeadItem {
@@ -518,12 +519,22 @@ export default function UnifiedLeadListPage() {
                       >
                         {/* Lead Code */}
                         <td className="px-4 py-3 font-mono font-medium text-ink-900 whitespace-nowrap">
-                          {lead.leadCode}
+                          <Link
+                            href={`/executive/leads/${lead.id}`}
+                            className="text-[#8C653D] hover:underline font-semibold"
+                          >
+                            {lead.leadCode}
+                          </Link>
                         </td>
 
                         {/* Name & Contact */}
                         <td className="px-4 py-3">
-                          <div className="font-medium text-ink-950">{lead.name}</div>
+                          <Link
+                            href={`/executive/leads/${lead.id}`}
+                            className="font-medium text-ink-950 hover:text-[#8C653D] hover:underline"
+                          >
+                            {lead.name}
+                          </Link>
                           <div className="font-mono text-[11px] text-ink-500">
                             {formatPhoneDisplay(lead.phoneE164)}
                           </div>
@@ -623,11 +634,19 @@ export default function UnifiedLeadListPage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="font-mono text-xs font-semibold text-ink-900">
+                        <Link
+                          href={`/executive/leads/${lead.id}`}
+                          className="font-mono text-xs font-semibold text-[#8C653D] hover:underline"
+                        >
                           {lead.leadCode}
-                        </div>
+                        </Link>
                         <div className="font-medium text-ink-950 text-sm mt-0.5">
-                          {lead.name}
+                          <Link
+                            href={`/executive/leads/${lead.id}`}
+                            className="hover:text-[#8C653D] hover:underline"
+                          >
+                            {lead.name}
+                          </Link>
                         </div>
                         <div className="font-mono text-xs text-ink-500">
                           {formatPhoneDisplay(lead.phoneE164)}

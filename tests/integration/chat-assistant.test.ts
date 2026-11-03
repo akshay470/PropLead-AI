@@ -167,7 +167,8 @@ describe("Autonomous AI Chat Assistant & Guardrails (Step 4)", () => {
   it("detects DPDP opt-out keywords and halts reminders", async () => {
     expect(isOptOutMessage("STOP")).toBe(true);
     expect(isOptOutMessage("unsubscribe")).toBe(true);
-    expect(isOptOutMessage("रद्द करें")).toBe(true);
+    expect(isOptOutMessage("रोकें")).toBe(true);
+    expect(isOptOutMessage("बंद करो")).toBe(true);
     expect(isOptOutMessage("બંધ કરો")).toBe(true);
     expect(isOptOutMessage("Tell me about the clubhouse")).toBe(false);
 

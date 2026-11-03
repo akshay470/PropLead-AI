@@ -379,6 +379,18 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<RunAge
     createdAt: new Date(),
   });
 
+  // If flagged, mark the conversation record for admin review queue
+  if (isFlagged) {
+    await client
+      .update(conversations)
+      .set({
+        flagged: true,
+        flagReason: flagReason || "compliance_review",
+        updatedAt: new Date(),
+      })
+      .where(eq(conversations.id, options.conversationId));
+  }
+
   // 7. Record first response metric if not yet set
   if (!leadRecord?.firstResponseAt) {
     await setFirstResponseAt(options.leadId, new Date(), client);
