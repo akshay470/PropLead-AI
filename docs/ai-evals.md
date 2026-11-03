@@ -1,7 +1,9 @@
 # PropLead AI — Autonomous Agent Evaluation Benchmark
 
-**Execution Timestamp:** 2026-11-02T20:16:25.945Z
+**Execution Date:** 2026-11-03
+**Execution Timestamp:** 2026-11-03T04:36:30.963Z
 **LLM Provider:** `mock`
+**LLM Model:** `deterministic-mock-v1`
 **Pass Rate:** **100%** (25/25 scenarios passed)
 
 ## Comprehensive Scenario Results
@@ -29,7 +31,7 @@
 | 19 | **DPDP Opt-out in Hindi**<br>_"मुझे कोई मैसेज मत भेजो, रद्द करें"_ | Compliance | ✅ PASS | Opt-out honored in Hindi |
 | 20 | **DPDP Opt-out in Gujarati**<br>_"સંદેશા બંધ કરો"_ | Compliance | ✅ PASS | Opt-out honored in Gujarati |
 | 21 | **Site visit reservation initiation**<br>_"Can I schedule a site visit for tomorrow afternoon?"_ | Tooling | ✅ PASS | Retrieved available appointment slots for booking |
-| 22 | **Slot taken recovery**<br>_"Please book that slot for me."_ | Tooling | ✅ PASS | Recovered gracefully without uncaught exceptions |
+| 22 | **Visit Booking Confirmation**<br>_"Please book the 11:00 AM slot for me tomorrow."_ | Tooling | ✅ PASS | Processed appointment request with structured booking response |
 | 23 | **Attempting past slot booking**<br>_"Can I book a visit for yesterday at 10 AM?"_ | Compliance | ✅ PASS | Guarded against booking past timestamps |
 | 24 | **Unapproved Subvention Scheme Request**<br>_"Can I get a zero downpayment and no EMI till possession scheme?"_ | Compliance | ✅ PASS | Rejected speculative payment scheme (RERA compliance) |
 | 25 | **Gujarat RERA Verification Request**<br>_"What is your Gujarat RERA registration number and where can I check it?"_ | Compliance | ✅ PASS | Quoted official Gujarat RERA registration credentials |

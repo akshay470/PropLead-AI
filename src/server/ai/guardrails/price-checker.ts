@@ -10,6 +10,15 @@ export interface GuardrailCheckResult {
 export const MIN_ALLOWED_PRICE_LAKHS = 65;
 export const MAX_ALLOWED_PRICE_LAKHS = 120;
 
+// Registered Fact Sheet Price Range Endpoints (in Lakhs INR)
+// Project 1: 2 BHK: 75L–88L; 3 BHK: 98L–120L (1.20 Cr)
+// Project 2: 2 BHK: 65L–76L; 3 BHK: 85L–105L (1.05 Cr)
+export const FACT_SHEET_PRICE_ENDPOINTS: Record<string, number[]> = {
+  project1: [75, 88, 98, 120],
+  project2: [65, 76, 85, 105],
+  all: [65, 75, 76, 85, 88, 98, 105, 120],
+};
+
 export const SAFE_PRICE_FALLBACK = {
   en: "Our sales team will confirm pricing details and unit availability with you directly. Would you like to schedule a site visit or have an executive call you?",
   hi: "हमारी सेल्स टीम आपसे सीधे संपर्क कर कीमत और यूनिट की विस्तृत जानकारी साझा करेगी। क्या आप साइट विजिट बुक करना चाहेंगे या किसी सेल्स एग्जीक्यूटिव से बात करना चाहेंगे?",
@@ -59,6 +68,32 @@ const FORBIDDEN_PATTERNS: Array<{ regex: RegExp; reason: string }> = [
     reason: "unapproved_payment_scheme_indic",
   },
 ];
+
+// Single figure price claim patterns (must be flagged unless clearly describing a range)
+const SINGLE_FIGURE_PRICE_PATTERNS: RegExp[] = [
+  // English: "priced at", "costs exactly", "cost is", "rate is", "price is", "for a 2 BHK", etc.
+  /\b(priced at|costs exactly|costs\b|cost is|rate is|price is|is priced at|selling for|fixed at|exact price of|final price of)\s*(?:₹|rs\.?|inr)?\s*\d+/i,
+  /\b(?:₹|rs\.?|inr)\s*\d+(?:\.\d+)?\s*(?:lakhs?|cr(?:ore)?s?)\s+for\s+(?:a\s+)?(?:\d+\s*bhk|this\s+apartment|the\s+flat)\b/i,
+  // Hindi
+  /(कीमत\s*है|भाव\s*है|लागत\s*है|मूल्य\s*है|की\s*दर\s*है)\s*(?:₹|रु\.?|रुपये)?\s*\d+/i,
+  /\d+\s*(?:लाख|करोड़)\s*(?:रुपये)?\s*में\s*(?:2|3)\s*बीएचके/i,
+  // Gujarati
+  /(કિંમત\s*છે|ભાવ\s*છે|દર\s*છે)\s*(?:₹|રૂ\.?|રૂપિયા)?\s*\d+/i,
+  /\d+\s*(?:લાખ|કરોડ)\s*(?:રૂપિયા)?\s*માં\s*(?:2|3)\s*બીએચકે/i,
+];
+
+// Clear range indicators across English, Hindi, and Gujarati
+const RANGE_INDICATORS: RegExp[] = [
+  /\b(range|ranges|between|from)\b[\s\S]{1,40}\b(to|and|-|–)\b/i,
+  /\b\d+(?:\.\d+)?\s*(?:lakhs?|cr(?:ore)?s?)\s*(?:to|-|–)\s*(?:rs\.?|₹|inr)?\s*\d+(?:\.\d+)?\s*(?:lakhs?|cr(?:ore)?s?)\b/i,
+  /(से|થી)[\s\S]{1,40}(तक|સુધી)/i,
+  /\d+(?:\.\d+)?\s*(?:लाख|करोड़)\s*(?:से|तक|-|–)\s*\d+(?:\.\d+)?\s*(?:लाख|करोड़)/i,
+  /\d+(?:\.\d+)?\s*(?:લાખ|કરોડ)\s*(?:થી|સુધી|-|–)\s*\d+(?:\.\d+)?\s*(?:લાખ|કરોડ)/i,
+];
+
+export function isClearlyRange(text: string): boolean {
+  return RANGE_INDICATORS.some((pattern) => pattern.test(text));
+}
 
 /**
  * Extracts numeric rupee values mentioned in text (converted to Lakhs INR).
@@ -111,7 +146,8 @@ export function extractRupeeAmountsInLakhs(text: string): number[] {
  */
 export function checkPriceGuardrails(
   replyText: string,
-  language: "en" | "hi" | "gu" = "en"
+  language: "en" | "hi" | "gu" = "en",
+  projectContext?: "project1" | "project2" | "all" | string
 ): GuardrailCheckResult {
   const fallback = SAFE_PRICE_FALLBACK[language] || SAFE_PRICE_FALLBACK.en;
 
@@ -128,11 +164,12 @@ export function checkPriceGuardrails(
     }
   }
 
-  // 2. Check for extracted rupee amounts
+  // 2. Extract rupee amounts
   const extractedLakhs = extractRupeeAmountsInLakhs(replyText);
+  const isRange = isClearlyRange(replyText);
+
+  // 3. Check portfolio boundary limits first
   for (const amt of extractedLakhs) {
-    // Permissible range: Rs 65 Lakh to Rs 120 Lakh (1.20 Cr)
-    // Allow slight float margin of 0.05
     if (amt < MIN_ALLOWED_PRICE_LAKHS - 0.05) {
       return {
         passed: false,
@@ -146,6 +183,56 @@ export function checkPriceGuardrails(
       return {
         passed: false,
         reason: `price_above_maximum (${amt}L > ${MAX_ALLOWED_PRICE_LAKHS}L)`,
+        violatingSnippet: `${amt} Lakhs`,
+        fallbackMessage: fallback,
+      };
+    }
+  }
+
+  // 4. Check for single figure price claims (e.g. "priced at", "costs exactly", single figure without range)
+  for (const pattern of SINGLE_FIGURE_PRICE_PATTERNS) {
+    const match = pattern.exec(replyText);
+    if (match && !isRange) {
+      return {
+        passed: false,
+        reason: "single_figure_price_claim",
+        violatingSnippet: match[0],
+        fallbackMessage: fallback,
+      };
+    }
+  }
+
+  // If a single price figure is stated and it's not a clear range statement, flag it
+  if (extractedLakhs.length === 1 && !isRange) {
+    return {
+      passed: false,
+      reason: "single_figure_price_claim",
+      violatingSnippet: `${extractedLakhs[0]} Lakhs`,
+      fallbackMessage: fallback,
+    };
+  }
+
+  // 5. Resolve allowed endpoints for the given project and check exact match
+  const normalizedProject =
+    projectContext === "project1" ||
+    projectContext?.toLowerCase().includes("project 1") ||
+    projectContext?.toLowerCase().includes("grand orchard")
+      ? "project1"
+      : projectContext === "project2" ||
+        projectContext?.toLowerCase().includes("project 2") ||
+        projectContext?.toLowerCase().includes("serene meadows")
+      ? "project2"
+      : "all";
+
+  const allowedEndpoints =
+    FACT_SHEET_PRICE_ENDPOINTS[normalizedProject] || FACT_SHEET_PRICE_ENDPOINTS.all;
+
+  for (const amt of extractedLakhs) {
+    const matchesEndpoint = allowedEndpoints.some((ep) => Math.abs(amt - ep) < 0.15);
+    if (!matchesEndpoint) {
+      return {
+        passed: false,
+        reason: `unauthorized_price_endpoint (${amt}L is not a registered fact sheet range endpoint)`,
         violatingSnippet: `${amt} Lakhs`,
         fallbackMessage: fallback,
       };

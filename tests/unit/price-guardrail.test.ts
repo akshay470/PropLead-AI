@@ -202,5 +202,87 @@ describe("Price and Compliance Output Guardrail", () => {
       expect(resGu.passed).toBe(false);
       expect(resGu.fallbackMessage).toContain("અમારી સેલ્સ ટીમ સીધો સંપર્ક કરીને");
     });
+
+    // Step 5: Tightened Price Endpoint & Single-Figure Price Tests (>= 10 test cases)
+    describe("Tightened Endpoint & Single-Figure Price Rules", () => {
+      it("Case 27: flags 'Rs 70 lakh for a 2 BHK' (not an endpoint & single figure)", () => {
+        const res = checkPriceGuardrails("Rs 70 lakh for a 2 BHK");
+        expect(res.passed).toBe(false);
+      });
+
+      it("Case 28: flags phrasing that presents a single figure: 'priced at Rs 65 Lakh'", () => {
+        const res = checkPriceGuardrails("The 2 BHK apartment is priced at Rs 65 Lakh.");
+        expect(res.passed).toBe(false);
+        expect(res.reason).toBe("single_figure_price_claim");
+      });
+
+      it("Case 29: flags phrasing that presents a single figure: 'costs exactly Rs 75 Lakh'", () => {
+        const res = checkPriceGuardrails("This unit costs exactly Rs 75 Lakh.");
+        expect(res.passed).toBe(false);
+        expect(res.reason).toBe("single_figure_price_claim");
+      });
+
+      it("Case 30: flags single figure price: 'The price is Rs 85 Lakh'", () => {
+        const res = checkPriceGuardrails("The price is Rs 85 Lakh for this configuration.");
+        expect(res.passed).toBe(false);
+        expect(res.reason).toBe("single_figure_price_claim");
+      });
+
+      it("Case 31: flags Hindi single figure price: 'इस फ्लैट की कीमत 75 लाख है'", () => {
+        const res = checkPriceGuardrails("इस फ्लैट की कीमत 75 लाख है।", "hi");
+        expect(res.passed).toBe(false);
+        expect(res.reason).toBe("single_figure_price_claim");
+      });
+
+      it("Case 32: flags Gujarati single figure price: 'આ ફ્લેટ ની કિંમત 65 લાખ છે'", () => {
+        const res = checkPriceGuardrails("આ ફ્લેટ ની કિંમત 65 લાખ છે.", "gu");
+        expect(res.passed).toBe(false);
+        expect(res.reason).toBe("single_figure_price_claim");
+      });
+
+      it("Case 33: flags range using non-registered endpoints: 'from Rs 70 Lakh to Rs 80 Lakh'", () => {
+        const res = checkPriceGuardrails("Apartments range from Rs 70 Lakh to Rs 80 Lakh.");
+        expect(res.passed).toBe(false);
+        expect(res.reason).toContain("unauthorized_price_endpoint");
+      });
+
+      it("Case 34: flags Project 1 reply using Project 2 endpoints (65L - 76L)", () => {
+        const res = checkPriceGuardrails(
+          "Project 1 homes range from Rs 65 Lakh to Rs 76 Lakh.",
+          "en",
+          "project1"
+        );
+        expect(res.passed).toBe(false);
+        expect(res.reason).toContain("unauthorized_price_endpoint");
+      });
+
+      it("Case 35: allows Project 1 reply using authentic Project 1 endpoints (75L - 88L)", () => {
+        const res = checkPriceGuardrails(
+          "Project 1 residences range from Rs 75 Lakh to Rs 88 Lakh.",
+          "en",
+          "project1"
+        );
+        expect(res.passed).toBe(true);
+      });
+
+      it("Case 36: allows Project 2 reply using authentic Project 2 endpoints (65L - 76L)", () => {
+        const res = checkPriceGuardrails(
+          "Serene Meadows units range from Rs 65 Lakh to Rs 76 Lakh.",
+          "en",
+          "project2"
+        );
+        expect(res.passed).toBe(true);
+      });
+
+      it("Case 37: flags single figure phrasing in Hindi '75 लाख रुपये में 2 बीएचके'", () => {
+        const res = checkPriceGuardrails("75 लाख रुपये में 2 बीएचके उपलब्ध है।", "hi");
+        expect(res.passed).toBe(false);
+      });
+
+      it("Case 38: flags single figure phrasing in Gujarati '65 લાખ રૂપિયામાં 2 બીએચકે'", () => {
+        const res = checkPriceGuardrails("65 લાખ રૂપિયામાં 2 બીએચકે મળશે.", "gu");
+        expect(res.passed).toBe(false);
+      });
+    });
   });
 });

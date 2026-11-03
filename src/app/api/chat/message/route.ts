@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getLeadSession } from "@/server/auth/lead-session";
-import { sessionRateLimiter, ipRateLimiter } from "@/server/ai/rate-limiter";
+import { checkSessionRateLimit, checkIpRateLimit } from "@/server/ai/rate-limiter";
 import { runAgentTurn } from "@/server/ai/agent";
 
 const postMessageSchema = z.object({
@@ -14,7 +14,7 @@ const postMessageSchema = z.object({
 /**
  * POST /api/chat/message
  * Sends a message in the active buyer chat session.
- * Enforces session token authentication, rate limiting, and 1000-char max cap.
+ * Enforces session token authentication, DB-backed rate limiting, and 1000-char max cap.
  * Orchestrates multi-turn tool calling, fact grounding, price guardrails, and metrics.
  */
 export async function POST(request: NextRequest) {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       request.headers.get("x-real-ip") ||
       "127.0.0.1";
 
-    const sessionLimit = sessionRateLimiter.isRateLimited(session.leadId);
+    const sessionLimit = await checkSessionRateLimit(session.leadId);
     if (sessionLimit.limited) {
       return NextResponse.json(
         {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ipLimit = ipRateLimiter.isRateLimited(ip);
+    const ipLimit = await checkIpRateLimit(ip);
     if (ipLimit.limited) {
       return NextResponse.json(
         {

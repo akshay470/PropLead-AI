@@ -22,6 +22,13 @@
       "when": 1793649645444,
       "tag": "0002_wide_wendell_vaughn",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793680229023,
+      "tag": "0003_clammy_junta",
+      "breakpoints": true
     }
   ]
 }

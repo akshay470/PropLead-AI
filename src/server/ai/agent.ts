@@ -39,17 +39,73 @@ export function detectMessageLanguage(text: string): "en" | "hi" | "gu" {
 
 /**
  * Checks for opt-out keywords (DPDP Act compliance) across English, Hindi, and Gujarati.
+ * - Triggers on exact keywords: STOP, UNSUBSCRIBE, and Indic equivalents (after trimming/lowercasing)
+ * - Triggers on clear unambiguous phrases: "stop messaging me", "stop sending messages", etc.
+ * - Words like "cancel", "रद्द", "રદ" inside a longer sentence (e.g. "cancel my visit") do NOT opt out.
+ * - Unrelated sentences containing the word "stop" (e.g. "stop by tomorrow", "bus stop") do NOT opt out.
  */
 export function isOptOutMessage(text: string): boolean {
-  const normalized = text.trim().toLowerCase();
-  const optOutRegex =
-    /^(stop|unsubscribe|cancel|halt|optout|opt-out|रद्द|रद्द करें|बंद करो|रोको|બંધ કરો|રદ કરો|રોકો)$/i;
+  const normalized = text
+    .trim()
+    .toLowerCase()
+    .replace(/^["'“”‘’\s.,!?:;]+|["'“”‘’\s.,!?:;]+$/gu, "");
 
-  return optOutRegex.test(normalized) ||
-    normalized.includes("stop") ||
-    normalized.includes("unsubscribe") ||
-    normalized.includes("रद्द करें") ||
-    normalized.includes("બંધ કરો");
+  // 1. Exact opt-out keywords (complete match only)
+  const EXACT_KEYWORDS = new Set([
+    "stop",
+    "unsubscribe",
+    "optout",
+    "opt-out",
+    "halt",
+    // Hindi exact equivalents (stopping messages/contact)
+    "बंद करो",
+    "रोकें",
+    "रोको",
+    "अनसब्सक्राइब",
+    // Gujarati exact equivalents
+    "બંધ કરો",
+    "રોકો",
+    "અનસબ્સ્ક્રાઇબ",
+  ]);
+
+  if (EXACT_KEYWORDS.has(normalized)) {
+    return true;
+  }
+
+  // 2. Clear unambiguous phrases
+  const EXACT_PHRASES = [
+    /^stop\s+(messaging|contacting|calling|sms|messages?|sending\s+messages?)(?:\s+me)?$/i,
+    /^(please\s+)?stop\s+(messaging|contacting|sending\s+messages?)(?:\s+me)?$/i,
+    /^(do\s+not|don't|dont)\s+(message|contact|call|send\s+messages?)(?:\s+me)?$/i,
+    /^unsubscribe\s+me$/i,
+    // Hindi clear phrases
+    /^(मुझे\s+)?(कोई\s+)?(मैसेज|संदेश|कॉल)\s+(भेजना\s+)?(बंद\s+करो|मत\s+भेजो|मत\s+कीजिए)/i,
+    /^(मुझे\s+)?(मैसेज|संदेश)\s+मत\s+(भेजो|कीजिए)/i,
+    // Gujarati clear phrases
+    /^(મને\s+)?(કોઈ\s+)?(મેસેજ|સંદેશા)\s+(મોકલવાનું\s+)?(બંધ\s+કરો|ના\s+મોકલો)/i,
+    /^(મને\s+)?(મેસેજ|સંદેશા)\s+ના\s+મોકલો/i,
+  ];
+
+  return EXACT_PHRASES.some((regex) => regex.test(normalized));
+}
+
+/**
+ * Checks if a message ambiguously mentions stopping communications without being an exact opt-out.
+ */
+export function isAmbiguousOptOutQuery(text: string): boolean {
+  if (isOptOutMessage(text)) return false;
+  const lower = text.trim().toLowerCase();
+  return (
+    (lower.includes("stop") &&
+      (lower.includes("message") ||
+        lower.includes("notification") ||
+        lower.includes("text") ||
+        lower.includes("contact"))) ||
+    lower.includes("how to unsubscribe") ||
+    lower.includes("how do i opt out") ||
+    lower.includes("मैसेज बंद करना") ||
+    lower.includes("સંદેશા બંધ કરવા")
+  );
 }
 
 /**
@@ -127,6 +183,43 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<RunAge
       flagged: false,
       latencyMs: Date.now() - startTime,
       payloads: [{ type: "opted_out", message: optOutReply }],
+      usedFactIds: [],
+    };
+  }
+
+  // 2b. Handle ambiguous opt-out queries ("stop messaging", "how to stop", etc.)
+  if (isAmbiguousOptOutQuery(options.userMessage)) {
+    const promptReply =
+      detectedLanguage === "gu"
+        ? "શું આપ ઈચ્છો છો કે અમે આપને તમામ સંદેશા મોકલવાનું બંધ કરીએ? જો હા, તો પુષ્ટિ કરવા માટે 'STOP' અથવા 'બંધ કરો' લખો."
+        : detectedLanguage === "hi"
+        ? "क्या आप चाहते हैं कि हम आपको सभी संदेश भेजना बंद कर दें? यदि हाँ, तो पुष्टि के लिए 'STOP' या 'बंद करो' लिखें।"
+        : "Would you like us to stop all messages? If yes, please reply with 'STOP' to confirm your opt-out.";
+
+    await client.insert(messages).values([
+      {
+        conversationId: options.conversationId,
+        role: "user",
+        content: options.userMessage,
+        language: detectedLanguage,
+        createdAt: new Date(),
+      },
+      {
+        conversationId: options.conversationId,
+        role: "assistant",
+        content: promptReply,
+        language: detectedLanguage,
+        latencyMs: Date.now() - startTime,
+        createdAt: new Date(),
+      },
+    ]);
+
+    return {
+      reply: promptReply,
+      language: detectedLanguage,
+      flagged: false,
+      latencyMs: Date.now() - startTime,
+      payloads: [{ type: "ambiguous_opt_out_prompt" }],
       usedFactIds: [],
     };
   }
@@ -234,7 +327,11 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<RunAge
   }
 
   // 5. Output Guardrail (Pre-delivery verification)
-  const guardrailCheck = checkPriceGuardrails(finalReplyText, detectedLanguage);
+  const guardrailCheck = checkPriceGuardrails(
+    finalReplyText,
+    detectedLanguage,
+    leadRecord?.projectId || undefined
+  );
   if (!guardrailCheck.passed) {
     console.warn(
       `Guardrail violation detected: ${guardrailCheck.reason}. Replacing with safe fallback.`

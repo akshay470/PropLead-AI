@@ -1,9 +1,19 @@
-interface RateLimitBucket {
+import { db } from "../db";
+import { rateLimitBuckets } from "../db/schema";
+import { eq } from "drizzle-orm";
+
+export interface RateLimitResult {
+  limited: boolean;
+  remaining: number;
+  resetMs: number;
+}
+
+interface InMemoryBucket {
   timestamps: number[];
 }
 
-class InMemoryRateLimiter {
-  private buckets = new Map<string, RateLimitBucket>();
+export class InMemoryRateLimiter {
+  private buckets = new Map<string, InMemoryBucket>();
   private readonly windowMs: number;
   private readonly maxRequests: number;
 
@@ -17,7 +27,7 @@ class InMemoryRateLimiter {
     }
   }
 
-  isRateLimited(key: string): { limited: boolean; remaining: number; resetMs: number } {
+  isRateLimited(key: string): RateLimitResult {
     const now = Date.now();
     const cutoff = now - this.windowMs;
 
@@ -27,7 +37,6 @@ class InMemoryRateLimiter {
       this.buckets.set(key, bucket);
     }
 
-    // Filter out timestamps outside the active sliding window
     bucket.timestamps = bucket.timestamps.filter((ts) => ts > cutoff);
 
     if (bucket.timestamps.length >= this.maxRequests) {
@@ -55,8 +64,103 @@ class InMemoryRateLimiter {
   }
 }
 
-// 15 messages per minute per session
+// In-memory singletons for fast synchronous access and unit tests
 export const sessionRateLimiter = new InMemoryRateLimiter(60000, 15);
+export const ipRateLimiter = new InMemoryRateLimiter(60000, 30);
+
+/**
+ * DB-backed Rate Limiter for serverless instances (PostgreSQL-backed atomic window).
+ * If the database is temporarily unreachable, it falls back gracefully to in-memory limiting.
+ */
+export async function checkDbRateLimit(
+  key: string,
+  maxRequests: number,
+  windowMs: number = 60000,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dbOrTx: any = db
+): Promise<RateLimitResult> {
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - windowMs);
+
+  try {
+    const [existing] = await dbOrTx
+      .select({
+        key: rateLimitBuckets.key,
+        windowStart: rateLimitBuckets.windowStart,
+        count: rateLimitBuckets.count,
+      })
+      .from(rateLimitBuckets)
+      .where(eq(rateLimitBuckets.key, key))
+      .limit(1);
+
+    if (!existing || new Date(existing.windowStart) < cutoff) {
+      // Window expired or new key: reset/insert
+      await dbOrTx
+        .insert(rateLimitBuckets)
+        .values({
+          key,
+          windowStart: now,
+          count: 1,
+        })
+        .onConflictDoUpdate({
+          target: rateLimitBuckets.key,
+          set: {
+            windowStart: now,
+            count: 1,
+          },
+        });
+
+      return {
+        limited: false,
+        remaining: maxRequests - 1,
+        resetMs: windowMs,
+      };
+    }
+
+    if (existing.count >= maxRequests) {
+      const resetMs = Math.max(
+        0,
+        new Date(existing.windowStart).getTime() + windowMs - now.getTime()
+      );
+      return {
+        limited: true,
+        remaining: 0,
+        resetMs,
+      };
+    }
+
+    const nextCount = existing.count + 1;
+    await dbOrTx
+      .update(rateLimitBuckets)
+      .set({
+        count: nextCount,
+      })
+      .where(eq(rateLimitBuckets.key, key));
+
+    const resetMs = Math.max(
+      0,
+      new Date(existing.windowStart).getTime() + windowMs - now.getTime()
+    );
+
+    return {
+      limited: false,
+      remaining: Math.max(0, maxRequests - nextCount),
+      resetMs,
+    };
+  } catch (err) {
+    console.warn("DB rate limiter error, using memory fallback:", err);
+    return sessionRateLimiter.isRateLimited(key);
+  }
+}
+
+// 15 messages per minute per session
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function checkSessionRateLimit(sessionId: string, dbOrTx?: any): Promise<RateLimitResult> {
+  return checkDbRateLimit(`sess_${sessionId}`, 15, 60000, dbOrTx);
+}
 
 // 30 messages per minute per IP
-export const ipRateLimiter = new InMemoryRateLimiter(60000, 30);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function checkIpRateLimit(ip: string, dbOrTx?: any): Promise<RateLimitResult> {
+  return checkDbRateLimit(`ip_${ip}`, 30, 60000, dbOrTx);
+}

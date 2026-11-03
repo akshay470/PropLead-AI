@@ -269,12 +269,18 @@ export const conversations = pgTable(
       .references(() => leads.id, { onDelete: "cascade" }),
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     status: conversationStatusEnum("status").default("active").notNull(),
+    flagged: boolean("flagged").default(false).notNull(),
+    flagReason: text("flag_reason"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedById: uuid("reviewed_by_id").references(() => users.id, { onDelete: "set null" }),
+    reviewNotes: text("review_notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("conversations_lead_idx").on(table.leadId),
     index("conversations_status_idx").on(table.status),
+    index("conversations_flagged_idx").on(table.flagged),
   ]
 );
 
@@ -317,12 +323,16 @@ export const handoffs = pgTable(
       .references(() => users.id, { onDelete: "restrict" }),
     conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "set null" }),
     reason: varchar("reason", { length: 50 }).default("buyer_requested").notNull(),
+    status: varchar("status", { length: 20 }).default("open").notNull(), // "open", "contacted", "resolved"
     summary: text("summary").notNull(),
+    notes: text("notes"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("handoffs_lead_idx").on(table.leadId),
     index("handoffs_executive_idx").on(table.executiveId),
+    index("handoffs_status_idx").on(table.status),
   ]
 );
 
@@ -361,6 +371,21 @@ export const adSpend = pgTable(
   },
   (table) => [
     uniqueIndex("ad_spend_source_month_idx").on(table.source, table.month),
+  ]
+);
+
+// ==========================================
+// 13. SERVERLESS RATE LIMIT BUCKETS
+// ==========================================
+export const rateLimitBuckets = pgTable(
+  "rate_limit_buckets",
+  {
+    key: text("key").primaryKey(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(1),
+  },
+  (table) => [
+    index("rate_limit_window_idx").on(table.windowStart),
   ]
 );
 
