@@ -51,11 +51,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. EXECUTIVE ROUTES & PREVIEW HARNESS
+  // 2. EXECUTIVE ROUTES
   if (
     pathname.startsWith("/executive") ||
-    pathname.startsWith("/api/executive") ||
-    pathname.startsWith("/book-preview")
+    pathname.startsWith("/api/executive")
   ) {
     if (!user) {
       if (isApiRoute) {
@@ -99,8 +98,6 @@ export const config = {
     "/api/admin/:path*",
     "/executive/:path*",
     "/api/executive/:path*",
-    "/book-preview/:path*",
-    "/book-preview",
     "/buyer/:path*",
     "/api/buyer/:path*",
     "/login",

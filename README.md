@@ -2,7 +2,7 @@
 
 > Autonomous real estate lead capture, multilingual qualification, and real-time site visit booking for residential developers in Ahmedabad, Gujarat.
 
-[![Tests](https://img.shields.io/badge/Vitest-Passed-emerald)](file:///tests)
+[![Tests](https://img.shields.io/badge/Vitest-250%20Passed-emerald)](file:///tests)
 [![AI Evals](https://img.shields.io/badge/AI%20Evals-30%2F30%20(100%25)-emerald)](file:///docs/ai-evals.md)
 [![Timezone](https://img.shields.io/badge/Timezone-Asia%2FKolkata-amber)](file:///src/lib/timezone.ts)
 [![Compliance](https://img.shields.io/badge/Compliance-DPDP%202023%20%26%20RERA-blue)](file:///docs/security.md)
@@ -14,6 +14,71 @@
 PropLead AI is an enterprise-grade sales enablement platform built for Company A, an Ahmedabad residential real estate developer operating two live projects (**Project 1** in Bodakdev and **Project 2** in Shela, 420 apartments total, Rs 65 Lakh to Rs 1.2 Crore).
 
 The platform engages inbound buyer enquiries across web, property portals, social ads, and hoardings within 2 minutes 24/7 across English, Hindi, and Gujarati. It qualifies budgets, adheres strictly to statutory Gujarat RERA fact sheets, prevents double bookings with PostgreSQL concurrency locks, and coordinates smooth handoffs to 11 sales executives.
+
+---
+
+## Architecture Diagram
+
+```mermaid
+flowchart TD
+  subgraph Channels["Acquisition Channels"]
+    portal["Property Portals"]
+    ads["Social Media Ads"]
+    site["Developer Website"]
+    hoarding["Hoarding Phone"]
+  end
+
+  subgraph Ingestion["Ingestion & Compliance"]
+    dedupe["E.164 & Email Deduplication"]
+    dpdp["DPDP Affirmative Consent"]
+    leadsDb[("Leads Table")]
+  end
+
+  subgraph Assistant["Multilingual AI Assistant"]
+    agent["Autonomous Agent Loop"]
+    factSheet["Grounded Fact Sheet"]
+    priceGuard["Algorithmic Price Guardrail"]
+    gemini["Gemini 1.5 Flash / Mock"]
+  end
+
+  subgraph Booking["Booking & Concurrency Engine"]
+    slots["60-min IST Slots (10-18)"]
+    tx["Atomic Transaction & Row Lock"]
+    pIndex[("Partial Unique Index<br/>confirmed_slot_unique_idx")]
+    ics["iCalendar .ics Export"]
+  end
+
+  subgraph Workspaces["Role-Based Portals"]
+    buyerUI["Buyer Mobile Chat (/chat)"]
+    execUI["Sales Executive Portal (/executive)"]
+    adminUI["Sales Head Dashboard (/admin)"]
+  end
+
+  subgraph Reminders["Notifications & Cron"]
+    cron15["GitHub Actions (15m cron)"]
+    cronDaily["Vercel Daily Cron"]
+    dispatcher["Atomic Claim Dispatcher"]
+    msgLog[("Mock Message Log")]
+  end
+
+  Channels --> Ingestion
+  Ingestion --> leadsDb
+  buyerUI <--> Assistant
+  Assistant --> factSheet
+  Assistant --> priceGuard
+  Assistant --> gemini
+  Assistant --> Booking
+  Booking --> tx
+  tx --> pIndex
+  Booking --> ics
+  leadsDb --> execUI
+  Booking --> execUI
+  leadsDb --> adminUI
+  Booking --> adminUI
+  cron15 --> dispatcher
+  cronDaily --> dispatcher
+  dispatcher --> msgLog
+```
 
 ---
 
@@ -52,7 +117,57 @@ The platform engages inbound buyer enquiries across web, property portals, socia
    - Distributed PostgreSQL rate limiting (5 attempts/min per email, 20 attempts/min per IP on login; 15/min on chat).
    - Object-level authorization (IDOR protection) ensuring executives only access assigned leads and visits.
    - DPDP right to erasure / anonymization endpoint (`POST /api/admin/leads/[id]/anonymize`).
-   - Comprehensive security audit documented in `docs/security.md`.
+   - Comprehensive security audit documented in [`docs/security.md`](file:///docs/security.md).
+
+---
+
+## Project Structure & Folder Map
+
+```text
+PropLead-AI/
+├── .github/
+│   └── workflows/
+│       └── reminders.yml      # 15-minute GitHub Actions automated cron runner
+├── docs/
+│   ├── TDD.md                 # Complete Technical Design Document
+│   ├── security.md            # Security audit, findings, and route permission matrix
+│   ├── design.md              # Design system tokens, typography, and component guide
+│   ├── assumptions.md         # Architecture, operational, and regulatory assumptions
+│   └── ai-evals.md            # 30-scenario AI eval benchmark results
+├── drizzle/                   # Drizzle migration files and SQL manifests
+├── scripts/
+│   ├── eval-ai.ts             # 30-scenario autonomous AI evaluation suite
+│   └── scan-secrets.ts        # Secrets scanner for git history and working tree
+├── src/
+│   ├── app/                   # Next.js 14 App Router
+│   │   ├── admin/             # Sales Head dashboard, slots, facts, review queue
+│   │   ├── api/               # 47 REST Route Handlers (auth, chat, bookings, leads, admin, health)
+│   │   ├── chat/              # Public buyer chat interface
+│   │   ├── executive/         # Sales Executive pipeline, visits, handoffs
+│   │   ├── privacy/           # Statutory DPDP Act 2023 privacy notice
+│   │   └── page.tsx           # Quiet luxury developer homepage
+│   ├── components/            # Reusable React components
+│   │   ├── booking/           # Confirmation cards & calendar picker
+│   │   ├── layout/            # Header, role-aware nav, footer
+│   │   └── ui/                # Atomic UI library (Button, Badge, Card, Modal, EmptyState, etc.)
+│   ├── env.ts                 # Central Zod environment validator (fails fast at boot)
+│   ├── lib/                   # Shared utilities (phone E.164, Asia/Kolkata timezone, formatters)
+│   ├── middleware.ts          # Edge authentication & RBAC router
+│   └── server/                # Server-only domain services
+│       ├── ai/                # LLM agent loop, tool schemas, price guardrail, rate limiter
+│       ├── auth/              # Bcrypt hashing, JWT sessions, lead cookies, login limiter
+│       ├── db/                # Drizzle schema, client, and comprehensive seed script
+│       └── services/          # Leads, booking, reminders, slot management, metrics
+├── tests/
+│   ├── helpers/               # Test database setup (PGlite in-memory Postgres)
+│   ├── integration/           # Ingestion, booking, seed, migration, chat assistant tests
+│   └── unit/                  # Timezone, price guardrail, auth schemas, RBAC matrix, edge cases
+├── deployment.md              # Production deployment & operations guide
+├── next.config.mjs            # Security headers & closed CORS configuration
+├── tailwind.config.ts         # Custom architectural bronze/ink theme
+├── vitest.config.ts           # Vitest configuration (sequential PGlite runner)
+└── package.json
+```
 
 ---
 
@@ -105,9 +220,27 @@ Open [http://localhost:3000](http://localhost:3000) to view the homepage.
 
 ---
 
+## Scripts Reference
+
+| Command | Description |
+|:---|:---|
+| `pnpm dev` | Starts local Next.js development server on port 3000. |
+| `pnpm build` | Compiles production build (type checking + static page analysis). |
+| `pnpm start` | Runs compiled production build. |
+| `pnpm run lint` | Runs ESLint across all codebase files. |
+| `pnpm test` | Runs all 23 Vitest test suites (250 tests). |
+| `pnpm run eval:ai` | Executes the 30-scenario autonomous AI evaluation suite. |
+| `pnpm run scan:secrets` | Scans git history and tracked files for accidental credential leaks. |
+| `ALLOW_SEED=true pnpm run seed` | Seeds projects, staff, fact sheets, slots, leads, and ad spend. |
+| `pnpm run db:push` | Pushes Drizzle schema directly to connected PostgreSQL database. |
+| `pnpm run db:generate` | Generates SQL migration files from schema definitions. |
+| `pnpm run db:migrate` | Applies generated SQL migrations. |
+
+---
+
 ## Demonstration Credentials
 
-All seeded staff and demo accounts use password: `DemoPass123!`
+All seeded staff and demo accounts use password: `DemoPass123!` (demo only)
 
 | Role | Name | Email | Password |
 |:---|:---|:---|:---|
@@ -127,28 +260,45 @@ All seeded staff and demo accounts use password: `DemoPass123!`
 Run the automated test and evaluation suites:
 
 ```bash
-# Run all unit and integration tests (both UTC and Asia/Kolkata)
+# 1. Run all unit and integration tests
 pnpm test
 
-# Run the 30-scenario autonomous AI evaluation suite
+# 2. Run timezone determinism test under UTC and Asia/Kolkata
+# Under UTC:
+$env:TZ="UTC"; pnpm vitest run tests/unit/timezone.test.ts
+# Under Asia/Kolkata:
+$env:TZ="Asia/Kolkata"; pnpm vitest run tests/unit/timezone.test.ts
+
+# 3. Run the 30-scenario autonomous AI evaluation suite
 pnpm run eval:ai
 
-# Run code style and lint checks
+# 4. Run secrets scan
+pnpm run scan:secrets
+
+# 5. Run code style and lint checks
 pnpm run lint
 
-# Compile production build
+# 6. Compile production build
 pnpm run build
+```
+
+### Real-Pool Concurrency Test Note
+The test suite includes a strict 10-parallel-request race-condition test that runs on in-memory PostgreSQL (`tests/integration/booking.test.ts`). In addition, a real multi-connection connection-pool test is provided. It is skipped by default unless `TEST_DATABASE_URL` is set.
+To run against a real PostgreSQL connection pool:
+```bash
+TEST_DATABASE_URL="postgres://user:password@localhost:5432/dbname" pnpm vitest run tests/integration/booking.test.ts
 ```
 
 ---
 
 ## Documentation Index
 
-* [Deployment Guide (`deployment.md`)](file:///deployment.md) — Local setup, Vercel + Neon guide, environment checklist, and 5-minute reviewer verification script.
-* [Security & Compliance Audit (`docs/security.md`)](file:///docs/security.md) — Vulnerability findings, remediations, route permission matrix, and dependency audit.
-* [Design System Guidelines (`docs/design.md`)](file:///docs/design.md) — Color tokens, typography, radii, spacing, and shared component specifications.
-* [Project Assumptions (`docs/assumptions.md`)](file:///docs/assumptions.md) — Operational, architectural, and regulatory assumptions.
-* [AI Benchmark Evals (`docs/ai-evals.md`)](file:///docs/ai-evals.md) — 30-scenario compliance and prompt injection test benchmark.
+* [**Deployment Guide (`deployment.md`)**](file:///deployment.md) — Local setup, Vercel + Neon guide, environment checklist, and 5-minute reviewer verification script.
+* [**Technical Design Document (`docs/TDD.md`)**](file:///docs/TDD.md) — Comprehensive technical design document with architecture, data model, flows, and metrics.
+* [**Security & Compliance Audit (`docs/security.md`)**](file:///docs/security.md) — Vulnerability findings, remediations, route permission matrix, and dependency audit.
+* [**Design System Guidelines (`docs/design.md`)**](file:///docs/design.md) — Color tokens, typography, radii, spacing, and shared component specifications.
+* [**Project Assumptions (`docs/assumptions.md`)**](file:///docs/assumptions.md) — Operational, architectural, and regulatory assumptions.
+* [**AI Benchmark Evals (`docs/ai-evals.md`)**](file:///docs/ai-evals.md) — 30-scenario compliance and prompt injection test benchmark.
 
 ---
 

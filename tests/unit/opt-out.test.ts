@@ -54,11 +54,15 @@ describe("DPDP Opt-Out Keyword and Phrase Detection", () => {
     it("does NOT opt out on Hindi 'रद्द' / 'रद्द करें' inside visit cancellation requests", () => {
       expect(isOptOutMessage("मेरी विजिट रद्द करें")).toBe(false);
       expect(isOptOutMessage("स्लॉट रद्द करो")).toBe(false);
+      expect(isOptOutMessage("कल की बुकिंग रद्द कर दीजिए लेकिन मुझे बाद में फोन करें")).toBe(false);
+      expect(isOptOutMessage("कृपया मेरी 11 बजे की अपॉइंटमेंट रद्द करें")).toBe(false);
     });
 
     it("does NOT opt out on Gujarati 'રદ કરો' inside appointment changes", () => {
       expect(isOptOutMessage("મારી મુલાકાત રદ કરો")).toBe(false);
       expect(isOptOutMessage("વિઝિટ રદ કરવી છે")).toBe(false);
+      expect(isOptOutMessage("કાલે મુલાકાત રદ કરવી છે પરંતુ પ્રોજેક્ટ બ્રોશર મોકલો")).toBe(false);
+      expect(isOptOutMessage("સવારનો સ્લોટ રદ કરી આપો")).toBe(false);
     });
 
     it("does NOT opt out on 'stop' in a longer unrelated sentence", () => {

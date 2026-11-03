@@ -47,12 +47,6 @@ export async function Header() {
             Visits
           </Link>
           <Link
-            href="/book-preview"
-            className="transition-colors hover:text-ink-900"
-          >
-            Book Preview
-          </Link>
-          <Link
             href="/admin"
             className="transition-colors hover:text-ink-900"
           >
