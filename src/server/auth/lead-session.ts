@@ -1,15 +1,13 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { env } from "@/env";
 
 export const LEAD_SESSION_COOKIE_NAME = "proplead_lead_session";
 const LEAD_SESSION_EXPIRATION = "24h";
 
-const DEFAULT_DEV_SECRET = "proplead_ai_super_secret_development_key_minimum_32_bytes";
-
 function getSecretKey(): Uint8Array {
-  const secret = process.env.JWT_SECRET || DEFAULT_DEV_SECRET;
-  return new TextEncoder().encode(secret);
+  return new TextEncoder().encode(env.JWT_SECRET);
 }
 
 export interface LeadSessionPayload {

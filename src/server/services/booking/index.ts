@@ -123,6 +123,22 @@ export const bookingService = {
         };
       }
 
+      if (slot.status !== "available" || slot.status === "blocked") {
+        const alternativeSlots = await bookingService.listFreeSlots({
+          projectId: slot.projectId,
+          from: now,
+          limit: 3,
+          dbOrTx: tx,
+        });
+
+        return {
+          success: false,
+          code: "SLOT_TAKEN",
+          message: "This slot is no longer available. Please select an alternative time.",
+          alternativeSlots,
+        };
+      }
+
       const slotStart = new Date(slot.startsAt);
 
       if (slotStart <= now) {
@@ -345,11 +361,19 @@ export const bookingService = {
         .where(eq(bookings.id, bookingId));
 
       if (!booking) {
-        return { success: false, message: "Booking not found." };
+        return { success: false, code: "NOT_FOUND", message: "Booking not found." };
       }
 
       if (booking.status === "cancelled") {
-        return { success: true, message: "Booking is already cancelled." };
+        return { success: false, code: "ALREADY_CANCELLED", message: "Booking is already cancelled." };
+      }
+
+      if (booking.status === "visited" || booking.status === "no_show") {
+        return {
+          success: false,
+          code: "ALREADY_COMPLETED",
+          message: "Cannot cancel an appointment that has already taken place.",
+        };
       }
 
       // Update booking status to cancelled
@@ -398,6 +422,14 @@ export const bookingService = {
 
       if (!prevBooking) {
         return { success: false, code: "NOT_FOUND", message: "Booking not found." };
+      }
+
+      if (prevBooking.slotId === newSlotId) {
+        return {
+          success: false,
+          code: "SAME_SLOT",
+          message: "Cannot reschedule to the same visit slot. Please select a different time.",
+        };
       }
 
       if (prevBooking.status !== "confirmed") {
@@ -491,6 +523,7 @@ export const bookingService = {
         bookingId: bookings.id,
         leadId: bookings.leadId,
         slotExecutiveId: visitSlots.executiveId,
+        startsAt: visitSlots.startsAt,
       })
       .from(bookings)
       .innerJoin(visitSlots, eq(bookings.slotId, visitSlots.id))
@@ -502,6 +535,10 @@ export const bookingService = {
 
     if (!isAdmin && executiveId && row.slotExecutiveId !== executiveId) {
       throw new Error("Forbidden: You can only update outcomes for your own assigned visit appointments.");
+    }
+
+    if (new Date(row.startsAt) > new Date()) {
+      throw new Error("Cannot mark visit outcome before the scheduled appointment start time.");
     }
 
     // Update booking status

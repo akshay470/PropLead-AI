@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { getLeadSession } from "@/server/auth/lead-session";
 import { checkSessionRateLimit, checkIpRateLimit } from "@/server/ai/rate-limiter";
 import { runAgentTurn } from "@/server/ai/agent";
+import { messageSchema } from "@/server/ai/schemas";
 
-const postMessageSchema = z.object({
-  message: z
-    .string()
-    .min(1, "Message cannot be empty")
-    .max(1000, "Message length cannot exceed 1000 characters"),
-});
+const postMessageSchema = messageSchema;
 
 /**
  * POST /api/chat/message

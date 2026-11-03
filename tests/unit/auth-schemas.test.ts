@@ -1,20 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { registerSchema, loginSchema } from "@/server/auth/schemas";
+import { registerSchema, loginSchema, createStaffUserSchema } from "@/server/auth/schemas";
 
 describe("Auth Validation Schemas", () => {
-  describe("registerSchema", () => {
-    it("should accept valid registration payloads", () => {
+  describe("registerSchema (Public Buyer Registration)", () => {
+    it("should accept valid registration payloads and ignore role/isAdmin injection", () => {
       const valid = {
-        name: "Dev Executive",
+        name: "Dev Buyer",
         email: "DEV@company.com",
         password: "securePassword123",
-        role: "executive",
+        role: "admin", // attacker attempts privilege escalation
+        isAdmin: true,
       };
       const result = registerSchema.safeParse(valid);
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.email).toBe("dev@company.com"); // lowercased
-        expect(result.data.role).toBe("executive");
+        // role and isAdmin must not exist on parsed data
+        expect((result.data as Record<string, unknown>).role).toBeUndefined();
+        expect((result.data as Record<string, unknown>).isAdmin).toBeUndefined();
       }
     });
 
@@ -35,6 +38,35 @@ describe("Auth Validation Schemas", () => {
         password: "password1234",
       };
       const result = registerSchema.safeParse(invalid);
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("createStaffUserSchema (Admin Staff Provisioning)", () => {
+    it("should accept valid staff provisioning payload", () => {
+      const valid = {
+        name: "Sarah Patel",
+        email: "sarah@company.com",
+        password: "securePassword123",
+        role: "executive",
+        isAdmin: false,
+      };
+      const result = createStaffUserSchema.safeParse(valid);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.role).toBe("executive");
+        expect(result.data.isAdmin).toBe(false);
+      }
+    });
+
+    it("should reject non-staff roles", () => {
+      const invalid = {
+        name: "Buyer Impersonator",
+        email: "buyer@company.com",
+        password: "securePassword123",
+        role: "buyer",
+      };
+      const result = createStaffUserSchema.safeParse(invalid);
       expect(result.success).toBe(false);
     });
   });

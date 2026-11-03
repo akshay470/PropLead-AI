@@ -161,3 +161,17 @@ export async function checkSessionRateLimit(sessionId: string, dbOrTx?: any): Pr
 export async function checkIpRateLimit(ip: string, dbOrTx?: any): Promise<RateLimitResult> {
   return checkDbRateLimit(`ip_${ip}`, 30, 60000, dbOrTx);
 }
+
+// Login rate limiting: 5 attempts/min per email, 20 attempts/min per IP
+export async function checkLoginRateLimit(
+  email: string,
+  ip: string,
+  dbOrTx?: any
+): Promise<RateLimitResult> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const emailLimit = await checkDbRateLimit(`login_email_${normalizedEmail}`, 5, 60000, dbOrTx);
+  if (emailLimit.limited) {
+    return emailLimit;
+  }
+  return checkDbRateLimit(`login_ip_${ip}`, 20, 60000, dbOrTx);
+}

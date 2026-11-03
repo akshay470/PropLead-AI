@@ -1,14 +1,14 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
+import { env } from "@/env";
 
 // Cache database client across hot reloads in development
 const globalForDb = globalThis as unknown as {
   conn: postgres.Sql | undefined;
 };
 
-const connectionString =
-  process.env.DATABASE_URL || "postgres://postgres:postgres@localhost:5432/proplead_ai";
+const connectionString = env.DATABASE_URL;
 
 const client =
   globalForDb.conn ??
@@ -18,7 +18,7 @@ const client =
     connect_timeout: 10,
   });
 
-if (process.env.NODE_ENV !== "production") {
+if (env.NODE_ENV !== "production") {
   globalForDb.conn = client;
 }
 

@@ -103,6 +103,26 @@ export const reminderService = {
           ? notificationTemplates.visitReminder1Day(templateCtx)
           : notificationTemplates.visitReminder2Hours(templateCtx);
 
+      // 3. Atomic claim: Transition from 'pending' to 'sent' before message dispatch.
+      // If a concurrent cron dispatcher already claimed this reminder, returning will be empty.
+      const claimed = await dbOrTx
+        .update(reminders)
+        .set({
+          status: "sent",
+          sentAt: new Date(),
+        })
+        .where(
+          and(
+            eq(reminders.id, item.reminderId),
+            eq(reminders.status, "pending")
+          )
+        )
+        .returning({ id: reminders.id });
+
+      if (!claimed || claimed.length === 0) {
+        continue; // Handled by concurrent runner
+      }
+
       // Dispatch via mocked message log
       await messageService.sendMessage(
         {
@@ -113,15 +133,6 @@ export const reminderService = {
         },
         dbOrTx
       );
-
-      // Mark reminder as sent
-      await dbOrTx
-        .update(reminders)
-        .set({
-          status: "sent",
-          sentAt: new Date(),
-        })
-        .where(eq(reminders.id, item.reminderId));
 
       sent++;
     }

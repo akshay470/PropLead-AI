@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/server/auth/cookies";
 import { getLeadSession } from "@/server/auth/lead-session";
 import { bookingService } from "@/server/services/booking";
 import { db } from "@/server/db";
-import { bookings } from "@/server/db/schema";
+import { bookings, visitSlots, leads } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -28,6 +28,37 @@ export async function POST(
         { success: false, error: "Unauthorized: Active executive session or buyer session required" },
         { status: 401 }
       );
+    }
+
+    // IDOR check for executive: cannot reschedule another executive's assigned booking
+    if (user && user.role === "executive" && !user.isAdmin) {
+      const [existing] = await db
+        .select({
+          id: bookings.id,
+          slotExecutiveId: visitSlots.executiveId,
+          assignedExecutiveId: leads.assignedExecutiveId,
+        })
+        .from(bookings)
+        .innerJoin(visitSlots, eq(bookings.slotId, visitSlots.id))
+        .innerJoin(leads, eq(bookings.leadId, leads.id))
+        .where(eq(bookings.id, id))
+        .limit(1);
+
+      if (!existing) {
+        return NextResponse.json({ success: false, error: "Booking not found" }, { status: 404 });
+      }
+
+      if (
+        existing.slotExecutiveId &&
+        existing.slotExecutiveId !== user.userId &&
+        existing.assignedExecutiveId &&
+        existing.assignedExecutiveId !== user.userId
+      ) {
+        return NextResponse.json(
+          { success: false, error: "Forbidden: You cannot reschedule another executive's booking" },
+          { status: 403 }
+        );
+      }
     }
 
     // If caller is buyer, verify booking belongs to their session leadId

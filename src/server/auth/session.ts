@@ -1,14 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
+import { env } from "@/env";
 
 export const SESSION_COOKIE_NAME = "proplead_session";
 const SESSION_EXPIRATION = "7d";
 
-// 32-byte minimum secret key for HMAC-SHA256
-const DEFAULT_DEV_SECRET = "proplead_ai_super_secret_development_key_minimum_32_bytes";
-
 function getSecretKey(): Uint8Array {
-  const secret = process.env.JWT_SECRET || DEFAULT_DEV_SECRET;
-  return new TextEncoder().encode(secret);
+  return new TextEncoder().encode(env.JWT_SECRET);
 }
 
 export interface SessionUser {

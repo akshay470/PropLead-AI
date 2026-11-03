@@ -118,6 +118,27 @@ This document records the operational, architectural, and regulatory assumptions
 - **Admin Slot & Rota Scheduling (`/admin/slots`):**
   - Week-by-week rota grid organized by hour (10:00 to 18:00 IST, 60-min slots) and day (Mon–Sun).
   - **Idempotent Slot Generation:** Backed by database unique index `(executive_id, starts_at)` and `ON CONFLICT DO NOTHING`. Re-running slot generation over overlapping date ranges creates only new slots and cleanly skips existing ones without throwing errors or creating duplicates.
+
+## 7. Security Hardening, Edge Cases & Compliance (Step 7)
+- **DPDP 180-Day Data Retention Assumption:**
+  - In accordance with DPDP Act 2023 principles of storage limitation, personal lead data, conversational transcripts, and handoff summaries are retained for an assumed operational window of **180 days** from initial enquiry or appointment completion, after which records are archived or anonymized.
+  - Aggregated statistical indicators (lead counts, conversion rates, channel ROI) are preserved indefinitely without PII.
+- **Login Brute-Force & Enumeration Protections:**
+  - Rate limiting enforced at 5 attempts/minute per email and 20 attempts/minute per IP address via PostgreSQL-backed buckets (`rate_limit_buckets`), responding with HTTP 429 and `Retry-After: 60`.
+  - Constant-time verification: When an unregistered email is submitted, a pre-computed dummy bcrypt hash (`DUMMY_BCRYPT_HASH`) is verified to prevent timing-based user enumeration.
+- **Strict Role-Based Account Provisioning:**
+  - Public registration (`POST /api/auth/register`) strictly assigns `role: "buyer"` and `isAdmin: false`, stripping any injected role parameters.
+  - Internal staff accounts (executives and administrators) are provisioned exclusively via database seed or the admin-protected route `POST /api/admin/users`.
+- **Object-Level Access Control (IDOR Prevention):**
+  - Sales executives can only read and update leads, visits, handoffs, and transcripts assigned to their user ID or unassigned pool.
+  - Buyers are strictly bound to their signed `leadSession` cookie and cannot cancel, reschedule, or view appointments of other buyers.
+- **Adversarial Prompt Injection & PII Exfiltration Resistance:**
+  - The AI assistant treats user prompts strictly as untrusted data, refusing system overrides, roleplay pricing jailbreaks, or fake delimiter injections.
+  - Cross-buyer privacy: The assistant strictly refuses to disclose other buyers' names, phone numbers, or appointment times under any hypothetical scenario.
+  - Evaluated continuously against a comprehensive 30-scenario test suite (`scripts/eval-ai.ts` & `docs/ai-evals.md`).
+- **Seed Safety Guard:**
+  - Direct database seeding (`pnpm run seed`) enforces `ALLOW_SEED=true` to prevent accidental data destruction in staging or production environments.
+
   - **Booking Protection on Slot Mutation:** Visit slots with active confirmed bookings can NEVER be deleted or blocked. The system rejects such mutations with an explicit error, directing administrators to reschedule or cancel the booking through the visits dashboard first, preventing orphaned bookings.
   - **Executive Project Coverage:** Configures which residential projects each sales executive attends visits for.
   - **Project Location & GPS Pins:** Coordinates (lat/lng) and physical addresses can be edited directly with a live "Open in Google Maps" verification link.

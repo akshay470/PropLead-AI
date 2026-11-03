@@ -5,6 +5,7 @@ import {
   LlmCompletionResponse,
   ToolCall,
 } from "./types";
+import { env } from "@/env";
 
 /**
  * Robust Mock LLM Provider for deterministic testing, CI, and local development.
@@ -98,6 +99,42 @@ export class MockLlmProvider implements ILlmProvider {
       } catch {
         // pass
       }
+    }
+
+    // 2.5 Adversarial Defense & Prompt Injection Hardening
+    if (text.includes("other buyer") || text.includes("another buyer") || text.includes("booked yesterday") || text.includes("booked this morning")) {
+      return {
+        content: "For privacy and DPDP compliance, I cannot disclose confidential details of other buyers or appointments. I would be pleased to assist you with your own home search.",
+        language: "en",
+      };
+    }
+
+    if (text.includes("system override") || text.includes("unrestricted") || text.includes("developer shell") || text.includes("root instruction")) {
+      return {
+        content: "I am the dedicated AI sales assistant for Company A's residential developments in Ahmedabad. I can help answer questions about our homes, pricing ranges, and schedule site visits.",
+        language: "en",
+      };
+    }
+
+    if (text.includes("admin mode") || text.includes("system notice") || text.includes("internal database") || text.includes("fact sheet id")) {
+      return {
+        content: "I cannot execute system commands or disclose internal credentials. How may I help you explore our residences today?",
+        language: "en",
+      };
+    }
+
+    if (text.includes("drop table") || text.includes("--")) {
+      return {
+        content: "I could not process that appointment parameter. Please select an available slot from our visit schedule.",
+        language: "en",
+      };
+    }
+
+    if (text.includes("fictional story") || text.includes("roleplay") || text.includes("evil assistant")) {
+      return {
+        content: "I cannot participate in hypothetical pricing scenarios. Company A residences feature official RERA price ranges: 2 BHK from Rs 65 Lakh to Rs 88 Lakh, and 3 BHK from Rs 95 Lakh to Rs 1.20 Crore.",
+        language: "en",
+      };
     }
 
     // 3. Human / Person request -> handoff
@@ -290,8 +327,8 @@ export class GeminiProvider implements ILlmProvider {
   private model: string;
 
   constructor(apiKey?: string, model?: string) {
-    this.apiKey = apiKey || process.env.LLM_API_KEY || process.env.GEMINI_API_KEY || "";
-    this.model = model || process.env.LLM_MODEL || "gemini-1.5-flash";
+    this.apiKey = apiKey || env.LLM_API_KEY || "";
+    this.model = model || env.LLM_MODEL || "gemini-1.5-flash";
   }
 
   async generateResponse(
@@ -431,9 +468,9 @@ export class GeminiProvider implements ILlmProvider {
  * Factory to retrieve the configured LLM provider.
  */
 export function getLlmProvider(): ILlmProvider {
-  const provider = (process.env.LLM_PROVIDER || "mock").toLowerCase();
+  const provider = (env.LLM_PROVIDER || "mock").toLowerCase();
 
-  if ((provider === "gemini" || provider === "google") && process.env.LLM_API_KEY) {
+  if ((provider === "gemini" || provider === "google") && env.LLM_API_KEY) {
     return new GeminiProvider();
   }
 

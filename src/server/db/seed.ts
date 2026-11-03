@@ -18,6 +18,12 @@ import { eq, sql } from "drizzle-orm";
 const FIXED_DEMO_PASSWORD = "DemoPass123!";
 
 export async function runSeed() {
+  if (process.env.ALLOW_SEED !== "true") {
+    throw new Error(
+      "Safety Guard Active: Database seeding requires ALLOW_SEED=true in environment variables to prevent accidental database overwrites."
+    );
+  }
+
   console.log("🌱 Starting PropLead AI database seed...");
 
   const now = new Date();

@@ -51,6 +51,7 @@ export type BookVisitResult =
 
 export interface CancelBookingResult {
   success: boolean;
+  code?: string;
   message?: string;
   booking?: {
     id: string;

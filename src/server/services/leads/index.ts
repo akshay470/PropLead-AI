@@ -8,9 +8,11 @@ import {
   generateLeadCode,
 } from "./ingestion";
 import { findDuplicate } from "./deduplication";
+import { anonymizeLead } from "./anonymize";
 
 export * from "./deduplication";
 export * from "./ingestion";
+export * from "./anonymize";
 
 export interface GetLeadsFilters {
   search?: string;

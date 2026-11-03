@@ -18,9 +18,22 @@ export function Footer() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-1 text-left md:text-right text-[11px] text-ink-400">
-            <span>PropLead AI • Senior Full-Stack Engineering Scaffolding</span>
-            <span className="text-ink-500">PostgreSQL (Neon) • Drizzle ORM • Next.js 14</span>
+          <div className="flex flex-col gap-2 text-left md:text-right text-[11px] text-ink-400">
+            <div className="flex items-center gap-4 md:justify-end">
+              <a href="/privacy" className="text-ink-600 hover:text-brand-600 underline transition-colors">
+                Privacy Notice (DPDP)
+              </a>
+              <span className="text-ink-300">&bull;</span>
+              <a href="/login" className="text-ink-600 hover:text-brand-600 underline transition-colors">
+                Staff Sign In
+              </a>
+              <span className="text-ink-300">&bull;</span>
+              <a href="/chat" className="text-ink-600 hover:text-brand-600 underline transition-colors">
+                AI Assistant
+              </a>
+            </div>
+            <span>PropLead AI &bull; Senior Full-Stack Engineering Platform</span>
+            <span className="text-ink-500">PostgreSQL (Neon) &bull; Drizzle ORM &bull; Next.js 14 &bull; Asia/Kolkata</span>
           </div>
         </div>
       </div>

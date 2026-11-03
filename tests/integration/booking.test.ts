@@ -402,6 +402,12 @@ describe("Booking Service & Double-Booking Protection", () => {
       )
     ).rejects.toThrow("Forbidden");
 
+    // Slot startsAt is moved to the past to simulate the completed visit
+    await testDb
+      .update(schema.visitSlots)
+      .set({ startsAt: new Date(Date.now() - 3600 * 1000) })
+      .where(eq(schema.visitSlots.id, slot.id));
+
     // Executive 1 (Rajesh Sharma) updates outcome -> succeeds!
     const updated = await bookingService.markVisitOutcome(
       {

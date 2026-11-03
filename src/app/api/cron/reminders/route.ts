@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reminderService } from "@/server/services/reminders/dispatcher";
+import { env } from "@/env";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const cronHeader = request.headers.get("x-cron-secret");
-  const cronSecret = process.env.CRON_SECRET || "demo_cron_secret_minimum_32_bytes";
+  const cronSecret = env.CRON_SECRET;
 
   const bearerToken = authHeader?.startsWith("Bearer ")
     ? authHeader.slice(7).trim()

@@ -119,6 +119,36 @@ function LoginForm() {
         </button>
       </form>
 
+      {process.env.NEXT_PUBLIC_DEMO_MODE === "true" && (
+        <div className="mt-5 pt-4 border-t border-surface-200">
+          <p className="text-[10px] uppercase font-semibold tracking-wider text-ink-400 text-center mb-2">
+            Demo Reviewer Credentials
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("admin@example.com");
+                setPassword("DemoPass123!");
+              }}
+              className="px-2 py-1.5 text-[11px] bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded text-center transition font-medium"
+            >
+              Sales Head (Admin)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("rajesh@example.com");
+                setPassword("DemoPass123!");
+              }}
+              className="px-2 py-1.5 text-[11px] bg-surface-200 hover:bg-surface-300 text-ink-800 border border-surface-300 rounded text-center transition font-medium"
+            >
+              Executive (Rajesh)
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mt-6 border-t border-surface-200 pt-4 text-center text-xs text-ink-400">
         <span>New staff member? </span>
         <Link href="/register" className="font-medium text-brand-600 hover:text-brand-700">
