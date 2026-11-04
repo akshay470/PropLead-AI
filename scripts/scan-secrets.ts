@@ -1,6 +1,17 @@
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
+import * as dotenv from "dotenv";
+
+// 1. Load env from .env.local first, then .env
+const envLocalPath = path.resolve(process.cwd(), ".env.local");
+if (fs.existsSync(envLocalPath)) {
+  dotenv.config({ path: envLocalPath });
+}
+const envPath = path.resolve(process.cwd(), ".env");
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
 
 const PATTERNS: Array<{ name: string; regex: RegExp }> = [
   { name: "Google API Key", regex: /AIza[0-9A-Za-z-_]{35}/ },
@@ -9,7 +20,7 @@ const PATTERNS: Array<{ name: string; regex: RegExp }> = [
   { name: "AWS Access Key ID", regex: /(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}/ },
   { name: "Private RSA/EC/SSH Key", regex: /-----BEGIN [A-Z0-9 ]+PRIVATE KEY-----/ },
   { name: "Slack Token", regex: /xox[baprs]-[0-9a-zA-Z]{10,48}/ },
-  { name: "Live Database URL with Credentials", regex: /postgres:\/\/(?!postgres:postgres)[a-zA-Z0-9_-]+:[^@\s]{4,}@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\// },
+  { name: "Live Database URL with Credentials", regex: /postgres:\/\/(?!postgres:postgres|user:pass|username:password)[a-zA-Z0-9_-]+:[^@\s]{4,}@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\// },
 ];
 
 console.log("🔍 Scanning git history and working tree for leaked credentials...");

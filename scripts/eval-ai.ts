@@ -1,11 +1,26 @@
+import * as fs from "fs";
+import * as path from "path";
+import * as dotenv from "dotenv";
+
+// 1. Load env from .env.local first, then .env
+const envLocalPath = path.resolve(process.cwd(), ".env.local");
+if (fs.existsSync(envLocalPath)) {
+  dotenv.config({ path: envLocalPath });
+}
+const envPath = path.resolve(process.cwd(), ".env");
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
+
+// AI evals run offline in test mode against in-memory PGlite
+Object.assign(process.env, { NODE_ENV: process.env.NODE_ENV || "test" });
+
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "../src/server/db/schema";
 import { applyMigrations } from "../tests/helpers/db";
 import { runAgentTurn } from "../src/server/ai/agent";
 import { getLlmProvider } from "../src/server/ai/provider";
-import * as fs from "fs";
-import * as path from "path";
 
 interface EvalScenario {
   id: number;

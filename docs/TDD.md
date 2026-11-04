@@ -524,7 +524,7 @@ The double-booking protection was subjected to an automated parallel execution t
 ### 6.3 In-Memory PGlite vs. Real Multi-Connection Pool
 In the local and CI test runner, tests execute against an in-memory PGlite instance. Because PGlite operates within a single-threaded WebAssembly environment, it serializes queries. To verify multi-connection concurrency against a true multi-threaded connection pool, a dedicated test case is included:
 ```bash
-TEST_DATABASE_URL="postgres://user:pass@ep-cool-db.us-east-2.aws.neon.tech/proplead" \
+TEST_DATABASE_URL="postgres://<user>:<password>@<ep-hostname>.neon.tech/proplead" \
 pnpm vitest run tests/integration/booking.test.ts
 ```
 When `TEST_DATABASE_URL` is omitted, this test is safely skipped (`1 skipped` out of 251 tests), ensuring fast offline test runs while providing verifiable production pool testing.

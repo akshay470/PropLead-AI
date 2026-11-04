@@ -547,7 +547,12 @@ describe("Booking Service & Double-Booking Protection", () => {
       "should enforce strict double-booking prevention on real multi-connection Postgres pool",
       async () => {
         const testDbUrl = process.env.TEST_DATABASE_URL!;
-        const sqlClient = postgres(testDbUrl, { max: 10 });
+        const testRequiresSsl =
+          testDbUrl.includes("sslmode=require") ||
+          testDbUrl.includes("sslmode=verify-full") ||
+          testDbUrl.includes("ssl=true") ||
+          testDbUrl.includes("ssl=require");
+        const sqlClient = postgres(testDbUrl, { max: 10, ssl: testRequiresSsl ? "require" : undefined });
         const poolDb = drizzlePg(sqlClient, { schema });
 
         try {

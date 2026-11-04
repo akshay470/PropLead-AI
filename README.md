@@ -190,7 +190,27 @@ PropLead-AI/
 - pnpm >= 9.x
 - PostgreSQL instance (Neon recommended)
 
-### Quick Setup
+### First run on Windows (PowerShell)
+```powershell
+# 1. Copy sample environment file to .env.local
+Copy-Item .env.example .env.local
+
+# 2. Fill in values in .env.local:
+#    - Set DATABASE_URL to your remote PostgreSQL connection string (Neon with sslmode=require)
+#    - Set JWT_SECRET (32+ chars) and CRON_SECRET (16+ chars)
+#    - Set ALLOW_SEED=true
+
+# 3. Apply database migrations
+pnpm run db:migrate
+
+# 4. Seed initial database (loads ALLOW_SEED=true and DATABASE_URL from .env.local automatically)
+pnpm run seed
+
+# 5. Start development server
+pnpm run dev
+```
+
+### Quick Setup (macOS / Linux)
 ```bash
 # 1. Clone repository
 git clone https://github.com/akshay470/PropLead-AI.git
@@ -200,17 +220,14 @@ cd PropLead-AI
 pnpm install
 
 # 3. Configure environment
-cp .env.example .env
-# Edit .env with your DATABASE_URL, JWT_SECRET (32+ chars), and CRON_SECRET (16+ chars)
+cp .env.example .env.local
+# Edit .env.local with your DATABASE_URL, JWT_SECRET (32+ chars), CRON_SECRET (16+ chars), and ALLOW_SEED=true
 
-# 4. Push database schema
-pnpm run db:push
+# 4. Apply database migrations
+pnpm run db:migrate
 
 # 5. Seed demonstration database
-# On Linux / macOS:
-ALLOW_SEED=true pnpm run seed
-# On Windows PowerShell:
-$env:ALLOW_SEED="true"; pnpm run seed
+pnpm run seed
 
 # 6. Start development server
 pnpm run dev

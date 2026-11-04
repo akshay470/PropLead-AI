@@ -9,6 +9,11 @@ const globalForDb = globalThis as unknown as {
 };
 
 const connectionString = env.DATABASE_URL;
+const requiresSsl =
+  connectionString.includes("sslmode=require") ||
+  connectionString.includes("sslmode=verify-full") ||
+  connectionString.includes("ssl=true") ||
+  connectionString.includes("ssl=require");
 
 const client =
   globalForDb.conn ??
@@ -16,6 +21,7 @@ const client =
     max: 10,
     idle_timeout: 20,
     connect_timeout: 10,
+    ssl: requiresSsl ? "require" : undefined,
   });
 
 if (env.NODE_ENV !== "production") {

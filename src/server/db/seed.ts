@@ -1,3 +1,31 @@
+import fs from "fs";
+import path from "path";
+import * as dotenv from "dotenv";
+
+// 1. Load env from .env.local first, then .env
+const envLocalPath = path.resolve(process.cwd(), ".env.local");
+if (fs.existsSync(envLocalPath)) {
+  dotenv.config({ path: envLocalPath });
+}
+const envPath = path.resolve(process.cwd(), ".env");
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
+
+// 2. Validate DATABASE_URL when not in test
+const databaseUrl = process.env.DATABASE_URL;
+const isTest = process.env.NODE_ENV === "test";
+
+if (!isTest) {
+  if (!databaseUrl || databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1")) {
+    console.error(
+      "❌ Error: DATABASE_URL is missing or points to localhost/127.0.0.1.\n" +
+      "Hint: Set DATABASE_URL in .env.local (see .env.example)"
+    );
+    process.exit(1);
+  }
+}
+
 import { db } from "./index";
 import {
   users,
@@ -19,9 +47,11 @@ const FIXED_DEMO_PASSWORD = "DemoPass123!";
 
 export async function runSeed() {
   if (process.env.ALLOW_SEED !== "true") {
-    throw new Error(
-      "Safety Guard Active: Database seeding requires ALLOW_SEED=true in environment variables to prevent accidental database overwrites."
+    console.error(
+      "❌ Error: Database seeding requires ALLOW_SEED=true in environment variables.\n" +
+      "Hint: Set ALLOW_SEED=true in .env.local (see .env.example)"
     );
+    process.exit(1);
   }
 
   console.log("🌱 Starting PropLead AI database seed...");
