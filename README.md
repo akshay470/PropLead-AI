@@ -197,8 +197,9 @@ Copy-Item .env.example .env.local
 
 # 2. Fill in values in .env.local:
 #    - Set DATABASE_URL to your remote PostgreSQL connection string (Neon with sslmode=require)
-#    - Set JWT_SECRET (32+ chars) and CRON_SECRET (16+ chars)
-#    - Set ALLOW_SEED=true
+#    - Set LLM_API_KEY to your Gemini API key (from Google AI Studio)
+#    - Verify configuration status (safe; never prints secret values)
+pnpm run check:env
 
 # 3. Apply database migrations
 pnpm run db:migrate
@@ -221,7 +222,8 @@ pnpm install
 
 # 3. Configure environment
 cp .env.example .env.local
-# Edit .env.local with your DATABASE_URL, JWT_SECRET (32+ chars), CRON_SECRET (16+ chars), and ALLOW_SEED=true
+# Edit .env.local with your DATABASE_URL and LLM_API_KEY
+pnpm run check:env
 
 # 4. Apply database migrations
 pnpm run db:migrate
@@ -245,10 +247,11 @@ Open [http://localhost:3000](http://localhost:3000) to view the homepage.
 | `pnpm build` | Compiles production build (type checking + static page analysis). |
 | `pnpm start` | Runs compiled production build. |
 | `pnpm run lint` | Runs ESLint across all codebase files. |
-| `pnpm test` | Runs all 23 Vitest test suites (250 tests). |
+| `pnpm test` | Runs all 24 Vitest test suites (262 tests). |
+| `pnpm run check:env` | Validates `.env.local` status without printing secret values. |
 | `pnpm run eval:ai` | Executes the 30-scenario autonomous AI evaluation suite. |
 | `pnpm run scan:secrets` | Scans git history and tracked files for accidental credential leaks. |
-| `ALLOW_SEED=true pnpm run seed` | Seeds projects, staff, fact sheets, slots, leads, and ad spend. |
+| `pnpm run seed` | Seeds projects, staff, fact sheets, slots, leads, and ad spend. |
 | `pnpm run db:push` | Pushes Drizzle schema directly to connected PostgreSQL database. |
 | `pnpm run db:generate` | Generates SQL migration files from schema definitions. |
 | `pnpm run db:migrate` | Applies generated SQL migrations. |

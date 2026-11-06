@@ -50,7 +50,26 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 function validateEnv(): Env {
-  const parsed = envSchema.safeParse(process.env);
+  const envToValidate = {
+    ...process.env,
+    DATABASE_URL:
+      process.env.DATABASE_URL?.trim() ||
+      (isBuildPhase || process.env.NODE_ENV !== "production"
+        ? "postgres://postgres:postgres@localhost:5432/proplead_ai"
+        : ""),
+    JWT_SECRET:
+      process.env.JWT_SECRET?.trim() ||
+      (isBuildPhase || process.env.NODE_ENV !== "production"
+        ? "proplead_ai_super_secret_development_key_minimum_32_bytes"
+        : ""),
+    CRON_SECRET:
+      process.env.CRON_SECRET?.trim() ||
+      (isBuildPhase || process.env.NODE_ENV !== "production"
+        ? "demo_cron_secret_minimum_32_bytes"
+        : ""),
+  };
+
+  const parsed = envSchema.safeParse(envToValidate);
 
   if (!parsed.success) {
     const missingKeys = Object.keys(parsed.error.flatten().fieldErrors);

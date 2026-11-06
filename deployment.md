@@ -45,8 +45,9 @@ Copy-Item .env.example .env.local
 
 # 2. Fill in values in .env.local:
 #    - Set DATABASE_URL to your remote PostgreSQL connection string (Neon with sslmode=require)
-#    - Set JWT_SECRET (32+ chars) and CRON_SECRET (16+ chars)
-#    - Set ALLOW_SEED=true
+#    - Set LLM_API_KEY to your Gemini API key (from Google AI Studio)
+#    - Verify configuration with check:env (never prints secret values)
+pnpm run check:env
 
 # 3. Apply database migrations
 pnpm run db:migrate
@@ -71,6 +72,10 @@ Copy the sample environment file:
 cp .env.example .env.local
 ```
 Populate `.env.local` with your PostgreSQL database URL (Neon with `sslmode=require`), a 32-character `JWT_SECRET`, a 16-character `CRON_SECRET`, and `ALLOW_SEED=true`.
+Verify configuration:
+```bash
+pnpm run check:env
+```
 
 ### Step 3: Run Database Migrations
 Apply Drizzle schema migrations to your Neon database:
