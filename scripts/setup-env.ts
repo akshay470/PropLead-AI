@@ -35,7 +35,7 @@ const cronSecret = getValue("CRON_SECRET", () => crypto.randomBytes(24).toString
 const databaseUrl = getValue("DATABASE_URL", "");
 const llmApiKey = getValue("LLM_API_KEY", "");
 const llmProvider = getValue("LLM_PROVIDER", "gemini");
-const llmModel = getValue("LLM_MODEL", "gemini-1.5-flash");
+const llmModel = getValue("LLM_MODEL", "gemini-3.5-flash-lite");
 const demoMode = getValue("NEXT_PUBLIC_DEMO_MODE", "true");
 const allowSeed = getValue("ALLOW_SEED", "true");
 const testDbUrl = getValue("TEST_DATABASE_URL", "");

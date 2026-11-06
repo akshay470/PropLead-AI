@@ -328,7 +328,7 @@ export class GeminiProvider implements ILlmProvider {
 
   constructor(apiKey?: string, model?: string) {
     this.apiKey = apiKey || env.LLM_API_KEY || "";
-    this.model = model || env.LLM_MODEL || "gemini-1.5-flash";
+    this.model = model || env.LLM_MODEL || "";
   }
 
   async generateResponse(
@@ -340,6 +340,10 @@ export class GeminiProvider implements ILlmProvider {
       console.warn("GeminiProvider: No LLM_API_KEY provided; falling back to MockLlmProvider.");
       const mock = new MockLlmProvider();
       return mock.generateResponse(messages, tools, systemPrompt);
+    }
+
+    if (!this.model) {
+      throw new Error("GeminiProvider: Model name is not configured. Set LLM_MODEL in environment.");
     }
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
@@ -357,23 +361,33 @@ export class GeminiProvider implements ILlmProvider {
         if (m.content) parts.push({ text: m.content });
         if (m.toolCalls && m.toolCalls.length > 0) {
           for (const tc of m.toolCalls) {
-            parts.push({
+            const part: Record<string, unknown> = {
               functionCall: {
                 name: tc.name,
                 args: tc.arguments,
               },
-            });
+            };
+            if (tc.thoughtSignature) {
+              part.thoughtSignature = tc.thoughtSignature;
+            }
+            parts.push(part);
           }
         }
         contents.push({ role: "model", parts });
       } else if (m.role === "tool") {
+        let parsedResponse: Record<string, unknown>;
+        try {
+          parsedResponse = JSON.parse(m.content);
+        } catch {
+          parsedResponse = { content: m.content };
+        }
         contents.push({
           role: "user",
           parts: [
             {
               functionResponse: {
                 name: m.name || "tool_result",
-                response: { content: m.content },
+                response: parsedResponse,
               },
             },
           ],
@@ -409,12 +423,12 @@ export class GeminiProvider implements ILlmProvider {
       requestPayload.tools = geminiTools;
     }
 
-    // Execution with 10s timeout & 1 retry
+    // Execution with 15s timeout & 1 retry
     let attempts = 0;
     while (attempts < 2) {
       attempts++;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       try {
         const res = await fetch(endpoint, {
@@ -427,7 +441,15 @@ export class GeminiProvider implements ILlmProvider {
         clearTimeout(timeoutId);
 
         if (!res.ok) {
-          const errText = await res.text();
+          let errText = await res.text();
+          if (this.apiKey) {
+            errText = errText.split(this.apiKey).join("[REDACTED]");
+          }
+          if (res.status === 429 && attempts < 2) {
+            // Wait 2.5s on upstream rate limit before second attempt
+            await new Promise((resolve) => setTimeout(resolve, 2500));
+            continue;
+          }
           throw new Error(`Gemini API error status ${res.status}: ${errText}`);
         }
 
@@ -445,6 +467,7 @@ export class GeminiProvider implements ILlmProvider {
               id: `call_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
               name: p.functionCall.name,
               arguments: p.functionCall.args || {},
+              thoughtSignature: p.thoughtSignature,
             });
           }
         }

@@ -201,6 +201,9 @@ Copy-Item .env.example .env.local
 #    - Verify configuration status (safe; never prints secret values)
 pnpm run check:env
 
+#    - Verify live LLM upstream connectivity (model set in LLM_MODEL, demo used gemini-3.5-flash-lite)
+pnpm run check:llm
+
 # 3. Apply database migrations
 pnpm run db:migrate
 
@@ -249,6 +252,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the homepage.
 | `pnpm run lint` | Runs ESLint across all codebase files. |
 | `pnpm test` | Runs all 24 Vitest test suites (262 tests). |
 | `pnpm run check:env` | Validates `.env.local` status without printing secret values. |
+| `pnpm run check:llm` | Verifies live LLM connectivity with a tiny call (model set in `LLM_MODEL`; demo used `gemini-3.5-flash-lite`). |
 | `pnpm run eval:ai` | Executes the 30-scenario autonomous AI evaluation suite. |
 | `pnpm run scan:secrets` | Scans git history and tracked files for accidental credential leaks. |
 | `pnpm run seed` | Seeds projects, staff, fact sheets, slots, leads, and ad spend. |

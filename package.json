@@ -11,6 +11,7 @@
     "eval:ai": "tsx scripts/eval-ai.ts",
     "scan:secrets": "tsx scripts/scan-secrets.ts",
     "check:env": "tsx scripts/check-env.ts",
+    "check:llm": "tsx scripts/check-llm.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",

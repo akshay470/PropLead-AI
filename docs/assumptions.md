@@ -85,7 +85,7 @@ This document records the operational, architectural, and regulatory assumptions
   - HTTP 429 returns clear localized retry warnings with countdown timers.
 - **Autonomous AI Evals Suite:**
   - `docs/ai-evals.md` tracks all 25 automated evaluation scenarios across compliance, prompt injection resistance, multilingual comprehension (en/hi/gu/hinglish), and tool calling.
-  - Every eval run explicitly documents provider, model name (`MOCK: deterministic-mock-v1` or `GEMINI: gemini-1.5-flash`), and execution timestamp. Mock-dependent edge cases are isolated in unit tests.
+  - Every eval run explicitly documents provider, model name (the model set in `LLM_MODEL`; demo used `gemini-3.5-flash-lite`, or `MOCK: deterministic-mock-v1`), and execution timestamp. Mock-dependent edge cases are isolated in unit tests.
 - **Session Security & Booking Lead Authorization:**
   - Public prospective buyers obtain a signed, HTTP-only JWT cookie (`proplead_lead_session`, 24h validity) upon starting a chat (`/api/chat/start`).
   - All public booking actions (`POST /api/bookings`, `/cancel`, `/reschedule`) cryptographically derive `leadId` directly from the verified session token. Any `leadId` supplied in the JSON request body is strictly discarded for buyer sessions to prevent account impersonation or unauthorized booking mutations.

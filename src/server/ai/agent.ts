@@ -9,6 +9,7 @@ import { SYSTEM_PROMPT_V1 } from "./prompts/system-v1";
 import { checkPriceGuardrails } from "./guardrails/price-checker";
 import { handoffService } from "../services/handoff";
 import { setFirstResponseAt } from "../services/leads/ingestion";
+import { categorizeLlmError } from "./errors";
 
 export interface RunAgentTurnOptions {
   leadId: string;
@@ -306,7 +307,8 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<RunAge
           : "I would be happy to assist you with details regarding our residential projects in Ahmedabad. How may I help you?";
     }
   } catch (error) {
-    console.error("LLM generation error; executing safe fallback:", error);
+    const errorCat = categorizeLlmError(error);
+    console.error(`[CHAT FALLBACK] Category: ${errorCat.category} | Reason: ${errorCat.reason}`);
 
     // Fallback: The chat must never hang or 500
     finalReplyText =
@@ -317,7 +319,7 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<RunAge
         : "I'm having trouble right now, a member of our team will contact you shortly.";
 
     isFlagged = true;
-    flagReason = error instanceof Error ? `llm_error: ${error.message}` : "llm_error";
+    flagReason = `llm_error: ${errorCat.category}`;
 
     // Trigger handoff to ensure lead is reached
     await handoffService.createHandoff({
@@ -343,9 +345,7 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<RunAge
     resolvedProjectContext
   );
   if (!guardrailCheck.passed) {
-    console.warn(
-      `Guardrail violation detected: ${guardrailCheck.reason}. Replacing with safe fallback.`
-    );
+    console.warn(`[CHAT FALLBACK] Category: guardrail | Reason: ${guardrailCheck.reason}`);
     finalReplyText = guardrailCheck.fallbackMessage;
     isFlagged = true;
     flagReason = guardrailCheck.reason;

@@ -41,7 +41,7 @@ const envSchema = z.object({
     .default("development"),
   LLM_PROVIDER: z.enum(["mock", "gemini", "google"]).default("mock"),
   LLM_API_KEY: z.string().optional().default(""),
-  LLM_MODEL: z.string().default("gemini-1.5-flash"),
+  LLM_MODEL: z.string().default(""),
   APP_URL: z.string().optional().default(""),
   ALLOW_SEED: z.string().optional().default(""),
   NEXT_PUBLIC_DEMO_MODE: z.string().optional().default("true"),

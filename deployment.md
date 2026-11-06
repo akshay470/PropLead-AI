@@ -27,7 +27,7 @@ All environment variables are validated at boot time by `src/env.ts`. Set the fo
 | `NODE_ENV` | Optional | `development` | `development`, `test`, or `production`. |
 | `LLM_PROVIDER` | Optional | `mock` | `gemini` (live Google Gemini API) or `mock` (deterministic test engine). |
 | `LLM_API_KEY` | If Gemini | Empty | Google AI Studio Gemini API Key. |
-| `LLM_MODEL` | Optional | `gemini-1.5-flash` | Gemini model identifier (e.g. `gemini-1.5-flash`). |
+| `LLM_MODEL` | Optional | Driven by `LLM_MODEL` env | Gemini model identifier driven solely by `LLM_MODEL` env (demo used `gemini-3.5-flash-lite`). |
 | `APP_URL` | Optional | `http://localhost:3000` | Canonical root URL used in reminder links and `.ics` generation. |
 | `ALLOW_SEED` | Guard | `false` | Must be explicitly set to `true` to allow `pnpm run seed` to execute. |
 | `NEXT_PUBLIC_DEMO_MODE` | Optional | `true` | Enables reviewer quick-fill login credentials on `/login`. |

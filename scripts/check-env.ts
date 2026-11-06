@@ -133,13 +133,13 @@ export function checkEnvStatuses(env: Record<string, string | undefined>): EnvCh
     results.push({
       name: "LLM_MODEL",
       status: "EMPTY",
-      notes: "Defaults to 'gemini-1.5-flash'",
+      notes: "Must be set in environment (e.g. gemini-3.5-flash-lite)",
     });
   } else {
     results.push({
       name: "LLM_MODEL",
       status: "OK",
-      notes: "Configured",
+      notes: `Configured ('${model}')`,
     });
   }
 
