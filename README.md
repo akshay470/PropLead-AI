@@ -215,7 +215,7 @@ pnpm run check:llm
 # 3. Apply database migrations
 pnpm run db:migrate
 
-# 4. Seed initial database (loads ALLOW_SEED=true and DATABASE_URL from .env.local automatically)
+# 4. Seed initial database (validates ALLOW_SEED=true, prints host safely, and refuses localhost unless ALLOW_LOCAL_SEED=true)
 pnpm run seed
 
 # 5. Start development server

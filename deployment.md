@@ -30,6 +30,7 @@ All environment variables are validated at boot time by `src/env.ts`. Set the fo
 | `LLM_MODEL` | Optional | Driven by `LLM_MODEL` env | Gemini model identifier driven solely by `LLM_MODEL` env (demo used `gemini-3.5-flash-lite`). |
 | `APP_URL` | Optional | `http://localhost:3000` | Canonical root URL used in reminder links and `.ics` generation. |
 | `ALLOW_SEED` | Guard | `false` | Must be explicitly set to `true` to allow `pnpm run seed` to execute. |
+| `ALLOW_LOCAL_SEED` | Guard | `false` | Must be explicitly set to `true` to allow seeding against `localhost` / `127.0.0.1`. |
 | `NEXT_PUBLIC_DEMO_MODE` | Optional | `true` | Enables reviewer quick-fill login credentials on `/login`. |
 
 > **Security Note:** Never commit `.env` or `.env.local` to git. All credentials and secret strings must be passed via secure secrets management.
@@ -84,7 +85,7 @@ pnpm run db:migrate
 ```
 
 ### Step 4: Seed Initial Data
-Seed Company A projects, fact sheets, slot inventory, sample leads, and ad spend:
+Seed Company A projects, fact sheets, slot inventory, sample leads, and ad spend (prints database host only and requires `ALLOW_SEED=true`; refuses `localhost` / `127.0.0.1` unless `ALLOW_LOCAL_SEED=true`):
 ```bash
 pnpm run seed
 ```
