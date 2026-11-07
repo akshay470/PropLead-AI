@@ -121,14 +121,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 3. Click **Deploy**.
 
 ### GitHub Actions Cron Setup (15-Minute Reminders)
+The scheduled reminder workflow (`.github/workflows/reminders.yml`) runs every 15 minutes to trigger `GET /api/cron/reminders`. It requires two GitHub Actions repository secrets:
 1. Go to your repository **Settings &rarr; Secrets and variables &rarr; Actions**.
-2. Add a Repository Secret:
-   - Name: `CRON_SECRET`
-   - Value: Same token set in your Vercel `CRON_SECRET` variable.
-3. Add a Repository Variable or Secret:
-   - Name: `APP_URL`
-   - Value: `https://your-app-domain.vercel.app`
-4. The workflow in `.github/workflows/reminders.yml` runs every 15 minutes to trigger `/api/cron/reminders`.
+2. Add the two required repository secrets:
+   - `CRON_SECRET`: Must match the `CRON_SECRET` configured in your Vercel deployment.
+   - `APP_URL`: Your deployed canonical URL (e.g., `https://your-app-domain.vercel.app`).
+3. **Graceful Skip Behavior:** If either `APP_URL` or `CRON_SECRET` is not yet configured, the workflow gracefully prints `"Cron skipped: APP_URL or CRON_SECRET not configured"` and exits cleanly with code 0 to prevent noisy failure notifications.
+4. When configured, it calls `GET /api/cron/reminders` with `Authorization: Bearer <CRON_SECRET>` using a 30-second timeout (`curl --fail --max-time 30`), and fails on any non-2xx response.
 
 ---
 
