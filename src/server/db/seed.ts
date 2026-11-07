@@ -37,9 +37,11 @@ import {
   bookings,
   reminders,
   executiveProjects,
+  leadScores,
 } from "./schema";
 import { hashPassword } from "../auth/passwords";
 import { findDuplicate, DedupeLeadRecord } from "../services/leads/deduplication";
+import { recomputeLeadScore } from "../services/scoring";
 import { createIstDate, getIstParts, getIstTomorrow } from "@/lib/timezone";
 import { eq, sql } from "drizzle-orm";
 
@@ -75,6 +77,7 @@ export async function runSeed() {
 
   // 1. CLEANUP (Idempotency)
   console.log("🧹 Resetting existing tables...");
+  await db.delete(leadScores);
   await db.delete(executiveProjects);
   await db.delete(reminders);
   await db.delete(bookings);
@@ -186,6 +189,7 @@ export async function runSeed() {
       wants: "3BHK",
       budgetMin: 8500000,
       budgetMax: 11000000,
+      buyingTimeline: "within_1_month",
       language: "gu",
       consentGiven: true,
       optedOut: false,
@@ -220,6 +224,7 @@ export async function runSeed() {
       wants: "2BHK",
       budgetMin: 6500000,
       budgetMax: 8000000,
+      buyingTimeline: "3_to_6_months",
       language: "en",
       consentGiven: true,
       optedOut: false,
@@ -254,6 +259,7 @@ export async function runSeed() {
       wants: "2BHK",
       budgetMin: 7000000,
       budgetMax: 8500000,
+      buyingTimeline: "1_to_3_months",
       language: "hi",
       consentGiven: true,
       optedOut: false,
@@ -307,6 +313,13 @@ export async function runSeed() {
   ] as const;
 
   const languages = ["en", "hi", "gu"] as const;
+  const timelines = [
+    "within_1_month",
+    "1_to_3_months",
+    "3_to_6_months",
+    "exploring",
+    "unknown",
+  ] as const;
 
   let currentLeadNumber = 58225;
 
@@ -324,6 +337,7 @@ export async function runSeed() {
     const budgetMin = wants === "3BHK" ? 9000000 : 6500000;
     const budgetMax = wants === "3BHK" ? 12000000 : 8500000;
     const language = languages[i % languages.length];
+    const buyingTimeline = timelines[i % timelines.length];
     const status = statuses[i % statuses.length];
 
     // Compliance edge cases: 3 opted out, 4 without consent
@@ -364,6 +378,7 @@ export async function runSeed() {
         wants,
         budgetMin,
         budgetMax,
+        buyingTimeline,
         language,
         consentGiven: hasConsent,
         optedOut: isOptedOut,
@@ -821,6 +836,11 @@ export async function runSeed() {
       status: outcome,
       createdAt: daysAgo(pastDay + 3),
     });
+  }
+
+  console.log("🎯 Computing initial Lead Priority Scores for all seeded leads...");
+  for (const sLead of seededLeads) {
+    await recomputeLeadScore(sLead.id, db);
   }
 
   console.log("\n==================================================");

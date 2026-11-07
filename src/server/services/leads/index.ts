@@ -1,6 +1,6 @@
 import { eq, and, or, ilike, desc, isNull, isNotNull, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { leads, projects, users } from "../../db/schema";
+import { leads, projects, users, leadScores } from "../../db/schema";
 import {
   createLeadFromEnquiry,
   setFirstResponseAt,
@@ -21,6 +21,8 @@ export interface GetLeadsFilters {
   status?: "new" | "contacted" | "qualified" | "visit_scheduled" | "visited" | "lost";
   assignedExecutiveId?: string;
   duplicates?: "only" | "exclude" | "all";
+  tier?: "hot" | "warm" | "cold";
+  sortBy?: "created_desc" | "score_desc" | "score_asc";
   limit?: number;
   offset?: number;
 }
@@ -42,6 +44,8 @@ export const leadService = {
       status,
       assignedExecutiveId,
       duplicates = "all",
+      tier,
+      sortBy = "created_desc",
       limit = 50,
       offset = 0,
     } = filters;
@@ -82,6 +86,10 @@ export const leadService = {
       conditions.push(isNull(leads.duplicateOfId));
     }
 
+    if (tier) {
+      conditions.push(eq(leadScores.tier, tier));
+    }
+
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Self-join to fetch canonical lead info
@@ -93,6 +101,13 @@ export const leadService = {
       })
       .from(leads)
       .as("canonical_lead");
+
+    const orderExpressions =
+      sortBy === "score_desc"
+        ? [sql`COALESCE(${leadScores.total}, -1) DESC`, desc(leads.createdAt)]
+        : sortBy === "score_asc"
+        ? [sql`COALESCE(${leadScores.total}, 999) ASC`, desc(leads.createdAt)]
+        : [desc(leads.createdAt)];
 
     const query = db
       .select({
@@ -107,6 +122,7 @@ export const leadService = {
         wants: leads.wants,
         budgetMin: leads.budgetMin,
         budgetMax: leads.budgetMax,
+        buyingTimeline: leads.buyingTimeline,
         language: leads.language,
         consentGiven: leads.consentGiven,
         optedOut: leads.optedOut,
@@ -117,6 +133,11 @@ export const leadService = {
         canonicalLeadCode: canonicalLeads.leadCode,
         canonicalLeadName: canonicalLeads.name,
         firstResponseAt: leads.firstResponseAt,
+        scoreTotal: leadScores.total,
+        scoreTier: leadScores.tier,
+        scoreBreakdown: leadScores.breakdown,
+        scoreDataCompleteness: leadScores.dataCompleteness,
+        scoreComputedAt: leadScores.computedAt,
         createdAt: leads.createdAt,
         updatedAt: leads.updatedAt,
       })
@@ -124,8 +145,9 @@ export const leadService = {
       .leftJoin(projects, eq(leads.projectId, projects.id))
       .leftJoin(users, eq(leads.assignedExecutiveId, users.id))
       .leftJoin(canonicalLeads, eq(leads.duplicateOfId, canonicalLeads.id))
+      .leftJoin(leadScores, eq(leads.id, leadScores.leadId))
       .where(whereClause)
-      .orderBy(desc(leads.createdAt))
+      .orderBy(...orderExpressions)
       .limit(limit)
       .offset(offset);
 
@@ -135,6 +157,7 @@ export const leadService = {
     const [countResult] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(leads)
+      .leftJoin(leadScores, eq(leads.id, leadScores.leadId))
       .where(whereClause);
 
     return {

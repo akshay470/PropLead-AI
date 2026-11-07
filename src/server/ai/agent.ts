@@ -10,6 +10,7 @@ import { checkPriceGuardrails } from "./guardrails/price-checker";
 import { handoffService } from "../services/handoff";
 import { setFirstResponseAt } from "../services/leads/ingestion";
 import { categorizeLlmError } from "./errors";
+import { recomputeLeadScore } from "../services/scoring";
 
 export interface RunAgentTurnOptions {
   leadId: string;
@@ -404,6 +405,13 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<RunAge
   // 7. Record first response metric if not yet set
   if (!leadRecord?.firstResponseAt) {
     await setFirstResponseAt(options.leadId, new Date(), client);
+  }
+
+  // 8. Recompute Lead Priority Score idempotently after buyer message
+  try {
+    await recomputeLeadScore(options.leadId, client);
+  } catch (err) {
+    console.warn("Lead Priority Score recomputation note:", err);
   }
 
   return {

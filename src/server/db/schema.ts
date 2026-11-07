@@ -8,6 +8,7 @@ import {
   numeric,
   bigint,
   integer,
+  jsonb,
   timestamp,
   pgEnum,
   uniqueIndex,
@@ -92,6 +93,20 @@ export const messageLogStatusEnum = pgEnum("message_log_status", [
   "failed",
 ]);
 
+export const buyingTimelineEnum = pgEnum("buying_timeline", [
+  "within_1_month",
+  "1_to_3_months",
+  "3_to_6_months",
+  "exploring",
+  "unknown",
+]);
+
+export const leadTierEnum = pgEnum("lead_tier", [
+  "hot",
+  "warm",
+  "cold",
+]);
+
 // ==========================================
 // 1. USERS
 // ==========================================
@@ -143,6 +158,7 @@ export const leads = pgTable(
     wants: varchar("wants", { length: 50 }), // e.g. "2BHK", "3BHK", "2BHK/3BHK"
     budgetMin: bigint("budget_min", { mode: "number" }),
     budgetMax: bigint("budget_max", { mode: "number" }),
+    buyingTimeline: buyingTimelineEnum("buying_timeline").default("unknown").notNull(),
     language: varchar("language", { length: 10 }).default("en").notNull(),
     consentGiven: boolean("consent_given").default(false).notNull(),
     optedOut: boolean("opted_out").default(false).notNull(),
@@ -415,6 +431,31 @@ export const executiveProjects = pgTable(
 );
 
 // ==========================================
+// 15. LEAD PRIORITY SCORES (Explainable Scoring Engine)
+// ==========================================
+export const leadScores = pgTable(
+  "lead_scores",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    leadId: uuid("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    total: integer("total").notNull(),
+    tier: leadTierEnum("tier").notNull(),
+    breakdown: jsonb("breakdown").notNull(),
+    dataCompleteness: varchar("data_completeness", { length: 50 }).notNull(),
+    scoreVersion: varchar("score_version", { length: 20 }).default("v1").notNull(),
+    computedAt: timestamp("computed_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("lead_scores_lead_id_idx").on(table.leadId),
+    index("lead_scores_tier_idx").on(table.tier),
+    index("lead_scores_total_idx").on(table.total),
+    index("lead_scores_computed_at_idx").on(table.computedAt),
+  ]
+);
+
+// ==========================================
 // RELATIONS
 // ==========================================
 export const usersRelations = relations(users, ({ many }) => ({
@@ -463,6 +504,7 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
   bookings: many(bookings),
   conversations: many(conversations),
   handoffs: many(handoffs),
+  score: one(leadScores),
 }));
 
 export const factSheetEntriesRelations = relations(factSheetEntries, ({ one }) => ({
@@ -530,5 +572,12 @@ export const handoffsRelations = relations(handoffs, ({ one }) => ({
   executive: one(users, {
     fields: [handoffs.executiveId],
     references: [users.id],
+  }),
+}));
+
+export const leadScoresRelations = relations(leadScores, ({ one }) => ({
+  lead: one(leads, {
+    fields: [leadScores.leadId],
+    references: [leads.id],
   }),
 }));

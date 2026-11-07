@@ -52,6 +52,18 @@ export const AGENT_TOOLS: ToolDefinition[] = [
           enum: ["en", "hi", "gu"],
           description: "Detected primary language used by the buyer.",
         },
+        buying_timeline: {
+          type: "string",
+          enum: [
+            "within_1_month",
+            "1_to_3_months",
+            "3_to_6_months",
+            "exploring",
+            "unknown",
+          ],
+          description:
+            "Planned purchasing horizon, e.g. 'within_1_month', '1_to_3_months', '3_to_6_months', 'exploring', or 'unknown'.",
+        },
         notes: {
           type: "string",
           description: "Any specific notes, family requirements, or preferences mentioned by the buyer.",

@@ -15,6 +15,7 @@ import {
   RescheduleBookingResult,
   BookingOutcome,
 } from "./types";
+import { recomputeLeadScore } from "../scoring";
 
 const BOOKING_CUTOFF_HOURS = 2;
 
@@ -320,6 +321,13 @@ export const bookingService = {
         })
         .where(eq(leads.id, leadId));
 
+      // Recompute Lead Priority Score idempotently
+      try {
+        await recomputeLeadScore(leadId, tx);
+      } catch (err) {
+        console.warn("Lead Priority Score recomputation note:", err);
+      }
+
       return {
         success: true,
         booking: {
@@ -388,6 +396,13 @@ export const bookingService = {
         .update(reminders)
         .set({ status: "cancelled" })
         .where(and(eq(reminders.bookingId, bookingId), eq(reminders.status, "pending")));
+
+      // Recompute Lead Priority Score idempotently
+      try {
+        await recomputeLeadScore(booking.leadId, tx);
+      } catch (err) {
+        console.warn("Lead Priority Score recomputation note:", err);
+      }
 
       return {
         success: true,
@@ -554,6 +569,13 @@ export const bookingService = {
       .update(leads)
       .set({ status: newLeadStatus, updatedAt: new Date() })
       .where(eq(leads.id, row.leadId));
+
+    // Recompute Lead Priority Score idempotently
+    try {
+      await recomputeLeadScore(row.leadId, dbOrTx);
+    } catch (err) {
+      console.warn("Lead Priority Score recomputation note:", err);
+    }
 
     return updatedBooking;
   },

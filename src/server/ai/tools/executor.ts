@@ -4,6 +4,7 @@ import { factSheetEntries, leads, conversations, projects, users } from "@/serve
 import { eq, and, or, ilike, sql } from "drizzle-orm";
 import { bookingService } from "@/server/services/booking";
 import { handoffService, HandoffReason } from "@/server/services/handoff";
+import { recomputeLeadScore } from "@/server/services/scoring";
 import { ToolCall } from "../types";
 
 export interface ToolExecutionContext {
@@ -28,6 +29,15 @@ const saveLeadDetailsSchema = z.object({
   budgetMax: z.number().nonnegative().optional(),
   projectId: z.string().uuid().optional(),
   language: z.enum(["en", "hi", "gu"]).optional(),
+  buying_timeline: z
+    .enum([
+      "within_1_month",
+      "1_to_3_months",
+      "3_to_6_months",
+      "exploring",
+      "unknown",
+    ])
+    .optional(),
   notes: z.string().optional(),
 });
 
@@ -180,11 +190,15 @@ export async function executeToolCall(
           context.projectId = data.projectId;
         }
         if (data.language !== undefined) updateValues.language = data.language;
+        if (data.buying_timeline !== undefined) updateValues.buyingTimeline = data.buying_timeline;
 
         await client
           .update(leads)
           .set(updateValues)
           .where(eq(leads.id, context.leadId));
+
+        // Recompute Lead Priority Score idempotently
+        await recomputeLeadScore(context.leadId, client);
 
         return {
           toolCallId: toolCall.id,
@@ -322,6 +336,9 @@ export async function executeToolCall(
           slotId: parsed.data.slotId,
           remindersScheduled: bookingResult.reminders.length,
         });
+
+        // Recompute Lead Priority Score idempotently
+        await recomputeLeadScore(context.leadId, client);
 
         return {
           toolCallId: toolCall.id,
