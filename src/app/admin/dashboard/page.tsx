@@ -60,6 +60,17 @@ interface DashboardData {
       formatted: string;
     }>;
   };
+  leadPriority?: {
+    disclaimer: string;
+    tiers: Array<{
+      tier: "hot" | "warm" | "cold";
+      tierLabel: string;
+      leadCount: number;
+      completedVisits: number;
+      visitRate: number;
+    }>;
+    totalScoredLeads: number;
+  };
 }
 
 export default function AdminDashboardPage() {
@@ -353,6 +364,93 @@ export default function AdminDashboardPage() {
                 </Link>
               </div>
             </div>
+
+            {/* Lead Priority Score Tiers & Conversion */}
+            {data.leadPriority && (
+              <div className="rounded-2xl border border-[#EBE7DF] bg-white p-5 shadow-2xs">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-[#F2EFE9] pb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-serif text-base font-bold text-[#141413]">
+                        Lead Priority Tiers &amp; Visit Conversion
+                      </h3>
+                      <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                        {data.leadPriority.disclaimer}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-[#7A7973]">
+                      Lead breakdown across priority tiers and completed site visit rates.
+                    </p>
+                  </div>
+                  <div className="text-xs text-[#7A7973]">
+                    <span className="font-semibold text-[#141413]">{data.leadPriority.totalScoredLeads}</span> scored leads in window
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {data.leadPriority.tiers.map((t) => {
+                    const isHot = t.tier === "hot";
+                    const isWarm = t.tier === "warm";
+
+                    return (
+                      <div
+                        key={t.tier}
+                        className={`rounded-xl border p-4 transition ${
+                          isHot
+                            ? "border-red-200 bg-red-50/30"
+                            : isWarm
+                            ? "border-amber-200 bg-amber-50/30"
+                            : "border-slate-200 bg-slate-50/30"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                              isHot
+                                ? "bg-red-100 text-red-800"
+                                : isWarm
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-slate-200 text-slate-800"
+                            }`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                isHot ? "bg-red-600" : isWarm ? "bg-amber-600" : "bg-slate-500"
+                              }`}
+                            />
+                            {t.tierLabel}
+                          </span>
+                          <span className="font-mono text-sm font-bold text-[#141413]">
+                            {t.visitRate}% Visit Rate
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex items-baseline justify-between">
+                          <div>
+                            <span className="text-[10px] text-[#7A7973] block">Leads in Tier</span>
+                            <span className="font-mono text-xl font-bold text-[#141413]">{t.leadCount}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] text-[#7A7973] block">Completed Visits</span>
+                            <span className="font-mono text-xl font-bold text-emerald-800">{t.completedVisits}</span>
+                          </div>
+                        </div>
+
+                        {/* Visual rate bar */}
+                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-200">
+                          <div
+                            className={`h-full rounded-full ${
+                              isHot ? "bg-red-500" : isWarm ? "bg-amber-500" : "bg-slate-400"
+                            }`}
+                            style={{ width: `${Math.min(100, t.visitRate)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* 4. Charts: SVG Visualizations with Tabular Fallbacks */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

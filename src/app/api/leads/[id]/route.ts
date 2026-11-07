@@ -11,6 +11,7 @@ import {
   reminders,
   conversations,
   messages,
+  leadScores,
 } from "@/server/db/schema";
 import { eq, desc, asc } from "drizzle-orm";
 
@@ -197,6 +198,31 @@ export async function GET(
       });
     }
 
+    // 7. Fetch Lead Priority Score (Executive privacy: executive sees only their own assigned lead score; Admin sees all)
+    let score = null;
+    const canViewScore =
+      user.role === "admin" ||
+      (user.role === "executive" && lead.assignedExecutiveId === user.userId);
+
+    if (canViewScore) {
+      const [leadScore] = await db
+        .select({
+          total: leadScores.total,
+          tier: leadScores.tier,
+          breakdown: leadScores.breakdown,
+          dataCompleteness: leadScores.dataCompleteness,
+          scoreVersion: leadScores.scoreVersion,
+          computedAt: leadScores.computedAt,
+        })
+        .from(leadScores)
+        .where(eq(leadScores.leadId, leadId))
+        .limit(1);
+
+      if (leadScore) {
+        score = leadScore;
+      }
+    }
+
     return NextResponse.json({
       success: true,
       lead,
@@ -207,6 +233,7 @@ export async function GET(
       reminders: bookingReminders,
       conversationId: conversation?.id || null,
       messages: chatMessages,
+      score,
     });
   } catch (error) {
     console.error("GET /api/leads/[id] error:", error);

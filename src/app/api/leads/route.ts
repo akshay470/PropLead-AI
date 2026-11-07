@@ -11,6 +11,8 @@ const getLeadsQuerySchema = z.object({
   status: z.enum(["new", "contacted", "qualified", "visit_scheduled", "visited", "lost"]).optional(),
   assignedExecutive: z.string().uuid().optional(),
   duplicates: z.enum(["only", "exclude", "all"]).default("all"),
+  tier: z.enum(["hot", "warm", "cold"]).optional(),
+  sortBy: z.enum(["created_desc", "score_desc", "score_asc"]).optional(),
   limit: z.coerce.number().min(1).max(100).default(50),
   offset: z.coerce.number().min(0).default(0),
 });
@@ -53,13 +55,32 @@ export async function GET(request: NextRequest) {
     status: query.status,
     assignedExecutiveId: query.assignedExecutive,
     duplicates: query.duplicates,
+    tier: query.tier,
+    sortBy: query.sortBy,
     limit: query.limit,
     offset: query.offset,
+  });
+
+  const isAdmin = user.isAdmin || user.role === "admin";
+  const sanitizedLeads = result.leads.map((lead) => {
+    // Executive sees only their own leads' scores; admin sees all
+    if (!isAdmin && lead.assignedExecutiveId !== user.userId) {
+      return {
+        ...lead,
+        scoreTotal: null,
+        scoreTier: null,
+        scoreBreakdown: null,
+        scoreDataCompleteness: null,
+        scoreComputedAt: null,
+      };
+    }
+    return lead;
   });
 
   return NextResponse.json({
     success: true,
     ...result,
+    leads: sanitizedLeads,
   });
 }
 

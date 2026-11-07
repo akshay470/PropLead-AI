@@ -17,6 +17,7 @@ import {
   adSpend,
   conversations,
   handoffs,
+  leadScores,
 } from "../../db/schema";
 import { sql, and, gte, lte, eq, isNull } from "drizzle-orm";
 import { getIstParts, createIstDate } from "@/lib/timezone";
@@ -60,6 +61,20 @@ export interface CostChartBar {
   formatted: string;
 }
 
+export interface TierMetric {
+  tier: "hot" | "warm" | "cold";
+  tierLabel: string;
+  leadCount: number;
+  completedVisits: number;
+  visitRate: number; // e.g. 75.0 (%)
+}
+
+export interface LeadPriorityDashboardMetrics {
+  disclaimer: "demo data, not a validated prediction";
+  tiers: TierMetric[];
+  totalScoredLeads: number;
+}
+
 export interface DashboardMetricsResult {
   timeRange: {
     days: number;
@@ -91,6 +106,7 @@ export interface DashboardMetricsResult {
     responseTimeTrend: TrendPoint[];
     costPerVisitBySource: CostChartBar[];
   };
+  leadPriority: LeadPriorityDashboardMetrics;
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -440,6 +456,81 @@ export const dashboardService = {
     const overallCostPerVisit =
       visitsCompletedCount > 0 ? Math.round(totalProratedSpend / visitsCompletedCount) : null;
 
+    // 7. LEAD PRIORITY SCORE TIER METRICS
+    let scoredLeads: Array<{ leadId: string; tier: "hot" | "warm" | "cold" }> = [];
+    try {
+      const scoreLeadConditions = [
+        gte(leads.createdAt, startDate),
+        lte(leads.createdAt, endDate),
+        isNull(leads.duplicateOfId),
+      ];
+      if (executiveId) {
+        scoreLeadConditions.push(eq(leads.assignedExecutiveId, executiveId));
+      }
+
+      const q = client
+        .select({
+          leadId: leadScores.leadId,
+          tier: leadScores.tier,
+        })
+        .from(leadScores)
+        .innerJoin(leads, eq(leadScores.leadId, leads.id))
+        .where(and(...scoreLeadConditions));
+
+      if (q && typeof (q as any).then === "function") {
+        scoredLeads = (await q) || [];
+      }
+    } catch {
+      scoredLeads = [];
+    }
+
+    const leadTierMap = new Map<string, "hot" | "warm" | "cold">();
+    const tierCounts = { hot: 0, warm: 0, cold: 0 };
+    for (const row of scoredLeads) {
+      leadTierMap.set(row.leadId, row.tier);
+      tierCounts[row.tier] = (tierCounts[row.tier] || 0) + 1;
+    }
+
+    const tierVisits = { hot: 0, warm: 0, cold: 0 };
+    for (const b of bookingRows) {
+      if (b.status === "visited" && b.leadId) {
+        const t = leadTierMap.get(b.leadId);
+        if (t) {
+          tierVisits[t] = (tierVisits[t] || 0) + 1;
+        }
+      }
+    }
+
+    const tierMetrics: TierMetric[] = [
+      {
+        tier: "hot",
+        tierLabel: "Hot (≥ 70)",
+        leadCount: tierCounts.hot,
+        completedVisits: tierVisits.hot,
+        visitRate: tierCounts.hot > 0 ? Math.round((tierVisits.hot / tierCounts.hot) * 1000) / 10 : 0,
+      },
+      {
+        tier: "warm",
+        tierLabel: "Warm (40–69)",
+        leadCount: tierCounts.warm,
+        completedVisits: tierVisits.warm,
+        visitRate: tierCounts.warm > 0 ? Math.round((tierVisits.warm / tierCounts.warm) * 1000) / 10 : 0,
+      },
+      {
+        tier: "cold",
+        tierLabel: "Cold (< 40)",
+        leadCount: tierCounts.cold,
+        completedVisits: tierVisits.cold,
+        visitRate: tierCounts.cold > 0 ? Math.round((tierVisits.cold / tierCounts.cold) * 1000) / 10 : 0,
+      },
+    ];
+
+    const leadPriority: LeadPriorityDashboardMetrics = {
+      disclaimer: "demo data, not a validated prediction",
+      tiers: tierMetrics,
+      totalScoredLeads: scoredLeads.length,
+    };
+
     return {
       timeRange: {
         days,
@@ -474,6 +565,7 @@ export const dashboardService = {
         responseTimeTrend,
         costPerVisitBySource,
       },
+      leadPriority,
     };
   },
 };

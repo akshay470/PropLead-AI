@@ -27,6 +27,11 @@ interface LeadItem {
   canonicalLeadName: string | null;
   firstResponseAt: string | null;
   createdAt: string;
+  scoreTotal: number | null;
+  scoreTier: "hot" | "warm" | "cold" | null;
+  scoreBreakdown: unknown | null;
+  scoreDataCompleteness: "complete" | "partial" | "insufficient" | null;
+  scoreComputedAt: string | null;
 }
 
 interface Executive {
@@ -52,6 +57,8 @@ export default function UnifiedLeadListPage() {
   const [projectFilter, setProjectFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [duplicateFilter, setDuplicateFilter] = useState<"all" | "exclude" | "only">("all");
+  const [tierFilter, setTierFilter] = useState("");
+  const [sortBy, setSortBy] = useState("");
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -96,6 +103,8 @@ export default function UnifiedLeadListPage() {
       if (projectFilter) params.set("project", projectFilter);
       if (statusFilter) params.set("status", statusFilter);
       if (duplicateFilter !== "all") params.set("duplicates", duplicateFilter);
+      if (tierFilter) params.set("tier", tierFilter);
+      if (sortBy) params.set("sortBy", sortBy);
       params.set("limit", "100");
 
       const response = await fetch(`/api/leads?${params.toString()}`);
@@ -112,7 +121,7 @@ export default function UnifiedLeadListPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, sourceFilter, projectFilter, statusFilter, duplicateFilter]);
+  }, [search, sourceFilter, projectFilter, statusFilter, duplicateFilter, tierFilter, sortBy]);
 
   useEffect(() => {
     fetchLeads();
@@ -296,6 +305,68 @@ export default function UnifiedLeadListPage() {
     }
   }
 
+  // Format Lead Priority Score Badge
+  function renderScoreBadge(
+    tier: LeadItem["scoreTier"],
+    total: LeadItem["scoreTotal"],
+    completeness: LeadItem["scoreDataCompleteness"]
+  ) {
+    if (total === null || tier === null) {
+      return (
+        <span className="inline-flex items-center text-xs text-ink-400" title="Score not available">
+          —
+        </span>
+      );
+    }
+
+    if (completeness === "insufficient") {
+      return (
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full border border-surface-300 bg-surface-100 px-2 py-0.5 text-xs text-ink-600"
+          title="Insufficient data to compute full priority score"
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-ink-400" />
+          <span className="font-medium">{total}</span>
+          <span className="text-[10px] text-ink-400">Insufficient Data</span>
+        </span>
+      );
+    }
+
+    if (tier === "hot") {
+      return (
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700"
+          title="Hot Lead Priority Score (>= 70)"
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+          <span>Hot {total}</span>
+        </span>
+      );
+    }
+
+    if (tier === "warm") {
+      return (
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800"
+          title="Warm Lead Priority Score (40-69)"
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          <span>Warm {total}</span>
+        </span>
+      );
+    }
+
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700"
+        title="Cold Lead Priority Score (< 40)"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+        <span>Cold {total}</span>
+      </span>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Top Header */}
@@ -324,9 +395,9 @@ export default function UnifiedLeadListPage() {
 
       {/* Filter and Search Bar */}
       <div className="mt-6 rounded-xl border border-surface-300 bg-surface-50 p-4 shadow-subtle">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7">
           {/* Search */}
-          <div className="lg:col-span-1">
+          <div className="sm:col-span-2 md:col-span-1 lg:col-span-1">
             <label className="block text-[11px] font-medium text-ink-500 mb-1">
               Search
             </label>
@@ -376,6 +447,23 @@ export default function UnifiedLeadListPage() {
             </select>
           </div>
 
+          {/* Priority Tier Filter */}
+          <div>
+            <label className="block text-[11px] font-medium text-ink-500 mb-1">
+              Priority Tier
+            </label>
+            <select
+              value={tierFilter}
+              onChange={(e) => setTierFilter(e.target.value)}
+              className="w-full rounded border border-surface-300 bg-surface-100 px-2 py-1.5 text-xs text-ink-900 focus:border-brand-500 focus:bg-surface-50 focus:outline-none"
+            >
+              <option value="">All Tiers</option>
+              <option value="hot">Hot (≥ 70)</option>
+              <option value="warm">Warm (40–69)</option>
+              <option value="cold">Cold (&lt; 40)</option>
+            </select>
+          </div>
+
           {/* Visit Status Filter */}
           <div>
             <label className="block text-[11px] font-medium text-ink-500 mb-1">
@@ -393,6 +481,22 @@ export default function UnifiedLeadListPage() {
               <option value="visit_scheduled">Visit Booked</option>
               <option value="visited">Visited</option>
               <option value="lost">Lost</option>
+            </select>
+          </div>
+
+          {/* Sort By */}
+          <div>
+            <label className="block text-[11px] font-medium text-ink-500 mb-1">
+              Sort By
+            </label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full rounded border border-surface-300 bg-surface-100 px-2 py-1.5 text-xs text-ink-900 focus:border-brand-500 focus:bg-surface-50 focus:outline-none"
+            >
+              <option value="">Default (Newest)</option>
+              <option value="score_desc">Score: High to Low</option>
+              <option value="score_asc">Score: Low to High</option>
             </select>
           </div>
 
@@ -414,7 +518,7 @@ export default function UnifiedLeadListPage() {
         </div>
 
         {/* Clear Filters bar */}
-        {(search || sourceFilter || projectFilter || statusFilter || duplicateFilter !== "all") && (
+        {(search || sourceFilter || projectFilter || statusFilter || duplicateFilter !== "all" || tierFilter || sortBy) && (
           <div className="mt-3 flex items-center justify-between border-t border-surface-200 pt-3 text-xs">
             <span className="text-ink-500">
               Showing filtered leads ({leads.length} of {totalCount})
@@ -426,6 +530,8 @@ export default function UnifiedLeadListPage() {
                 setProjectFilter("");
                 setStatusFilter("");
                 setDuplicateFilter("all");
+                setTierFilter("");
+                setSortBy("");
               }}
               className="font-medium text-brand-600 hover:text-brand-700"
             >
@@ -502,6 +608,7 @@ export default function UnifiedLeadListPage() {
                     <th className="px-4 py-3 font-semibold">Project</th>
                     <th className="px-4 py-3 font-semibold">Wants</th>
                     <th className="px-4 py-3 font-semibold">Visit Status</th>
+                    <th className="px-4 py-3 font-semibold">Priority Score</th>
                     <th className="px-4 py-3 font-semibold">Assigned Executive</th>
                     <th className="px-4 py-3 font-semibold">Response</th>
                   </tr>
@@ -590,6 +697,11 @@ export default function UnifiedLeadListPage() {
                           {renderStatusPill(lead.status)}
                         </td>
 
+                        {/* Priority Score */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {renderScoreBadge(lead.scoreTier, lead.scoreTotal, lead.scoreDataCompleteness)}
+                        </td>
+
                         {/* Assigned Executive Picker */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           <select
@@ -634,12 +746,15 @@ export default function UnifiedLeadListPage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <Link
-                          href={`/executive/leads/${lead.id}`}
-                          className="font-mono text-xs font-semibold text-[#8C653D] hover:underline"
-                        >
-                          {lead.leadCode}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/executive/leads/${lead.id}`}
+                            className="font-mono text-xs font-semibold text-[#8C653D] hover:underline"
+                          >
+                            {lead.leadCode}
+                          </Link>
+                          {renderScoreBadge(lead.scoreTier, lead.scoreTotal, lead.scoreDataCompleteness)}
+                        </div>
                         <div className="font-medium text-ink-950 text-sm mt-0.5">
                           <Link
                             href={`/executive/leads/${lead.id}`}

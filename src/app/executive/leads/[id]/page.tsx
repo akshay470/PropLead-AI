@@ -58,6 +58,21 @@ interface LeadDetailData {
     sentAt: string | null;
     status: string;
   }>;
+  score?: {
+    total: number;
+    tier: "hot" | "warm" | "cold";
+    breakdown: {
+      budget: { points: number; max: number; reason: string };
+      timeline: { points: number; max: number; reason: string };
+      siteVisit: { points: number; max: number; reason: string };
+      preference: { points: number; max: number; reason: string };
+      engagement: { points: number; max: number; reason: string };
+      missing?: string[];
+    };
+    dataCompleteness: "complete" | "partial" | "insufficient";
+    scoreVersion: string;
+    computedAt: string;
+  } | null;
   messages: Array<{
     id: string;
     role: string;
@@ -310,6 +325,120 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Lead Priority Score Breakdown Card */}
+        <div className="mt-6 rounded-2xl border border-[#EBE7DF] bg-white p-6 shadow-xs">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-[#EBE7DF] pb-4">
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FAF6F0] text-[#8C653D]">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </span>
+              <div>
+                <h2 className="text-sm font-semibold text-[#141413]">
+                  Lead Priority Score
+                </h2>
+                <p className="text-[11px] text-[#7A7973]">
+                  Rule-based qualification using declared intent signals only. Never uses demographic attributes.
+                </p>
+              </div>
+            </div>
+
+            {data.score && (
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                  data.score.tier === "hot"
+                    ? "bg-red-50 text-red-700 border border-red-200"
+                    : data.score.tier === "warm"
+                    ? "bg-amber-50 text-amber-800 border border-amber-200"
+                    : "bg-slate-50 text-slate-700 border border-slate-200"
+                }`}>
+                  <span className={`h-2 w-2 rounded-full ${
+                    data.score.tier === "hot" ? "bg-red-500" : data.score.tier === "warm" ? "bg-amber-500" : "bg-slate-400"
+                  }`} />
+                  <span className="uppercase tracking-wider">{data.score.tier}</span>
+                  <span className="font-bold">{data.score.total}/100</span>
+                </span>
+                <span className="rounded-md border border-[#EBE7DF] bg-[#FAF9F6] px-2 py-0.5 text-[11px] font-mono text-[#7A7973]">
+                  {data.score.dataCompleteness}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {data.score ? (
+            <div className="mt-4 space-y-4">
+              {/* Parameter Breakdown Grid */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                {[
+                  { key: "budget", label: "Budget Match", item: data.score.breakdown.budget },
+                  { key: "timeline", label: "Buying Timeline", item: data.score.breakdown.timeline },
+                  { key: "siteVisit", label: "Site Visit", item: data.score.breakdown.siteVisit },
+                  { key: "preference", label: "Preference Fit", item: data.score.breakdown.preference },
+                  { key: "engagement", label: "Engagement", item: data.score.breakdown.engagement },
+                ].map(({ key, label, item }) => (
+                  <div key={key} className="rounded-xl border border-[#EBE7DF] bg-[#FAF9F6] p-3 text-xs">
+                    <div className="flex items-center justify-between text-[#7A7973]">
+                      <span className="font-medium text-[#141413]">{label}</span>
+                      <span className="font-mono font-semibold text-[#8C653D]">
+                        {item.points}/{item.max}
+                      </span>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#EBE7DF]">
+                      <div
+                        className="h-full rounded-full bg-[#8C653D]"
+                        style={{ width: `${Math.min(100, Math.round((item.points / item.max) * 100))}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-[11px] leading-tight text-[#575651]">
+                      {item.reason}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Missing Information Note if any */}
+              {data.score.breakdown.missing && data.score.breakdown.missing.length > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <svg className="h-4 w-4 shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span>Insufficient Information: Neutral points applied</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-amber-800">
+                    Buyer has not yet provided: <strong>{data.score.breakdown.missing.join(", ")}</strong>. Score will automatically update as the buyer converses.
+                  </p>
+                </div>
+              )}
+
+              {/* Timestamp & Score Version */}
+              <div className="flex flex-wrap items-center justify-between pt-2 text-[11px] text-[#7A7973] border-t border-[#EBE7DF]">
+                <span>
+                  Last Computed:{" "}
+                  {new Date(data.score.computedAt).toLocaleDateString("en-IN", {
+                    timeZone: "Asia/Kolkata",
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}{" "}
+                  IST
+                </span>
+                <span className="font-mono text-[10px]">
+                  Version: {data.score.scoreVersion} &bull; Heuristic Qualification
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 text-center py-6 text-xs text-[#7A7973]">
+              <p>Lead Priority Score is restricted to assigned executive and administrators, or is pending buyer engagement.</p>
+            </div>
+          )}
         </div>
 
         {/* 3. Two-Column Dashboard: Handoff & Booking Cards */}
