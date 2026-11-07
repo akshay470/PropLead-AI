@@ -1,19 +1,7 @@
+import "./src/server/env-load";
 import { defineConfig } from "drizzle-kit";
-import fs from "fs";
-import path from "path";
-import * as dotenv from "dotenv";
 
-// 1. Load env from .env.local first, then .env
-const envLocalPath = path.resolve(process.cwd(), ".env.local");
-if (fs.existsSync(envLocalPath)) {
-  dotenv.config({ path: envLocalPath });
-}
-const envPath = path.resolve(process.cwd(), ".env");
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
-}
-
-// 2. Read DATABASE_URL from process.env
+// Read DATABASE_URL from process.env (loaded by env-load)
 const databaseUrl = process.env.DATABASE_URL;
 const isTest = process.env.NODE_ENV === "test";
 

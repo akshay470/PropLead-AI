@@ -1,31 +1,5 @@
-import fs from "fs";
-import path from "path";
-import * as dotenv from "dotenv";
-
-// 1. Load env from .env.local first, then .env
-const envLocalPath = path.resolve(process.cwd(), ".env.local");
-if (fs.existsSync(envLocalPath)) {
-  dotenv.config({ path: envLocalPath });
-}
-const envPath = path.resolve(process.cwd(), ".env");
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
-}
-
-// 2. Validate DATABASE_URL when not in test
-const databaseUrl = process.env.DATABASE_URL;
-const isTest = process.env.NODE_ENV === "test";
-
-if (!isTest) {
-  if (!databaseUrl || databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1")) {
-    console.error(
-      "❌ Error: DATABASE_URL is missing or points to localhost/127.0.0.1.\n" +
-      "Hint: Set DATABASE_URL in .env.local (see .env.example)"
-    );
-    process.exit(1);
-  }
-}
-
+import "../env-load";
+import { assertCanSeed, extractDatabaseHost } from "./seed-guards";
 import { db } from "./index";
 import {
   users,
@@ -45,17 +19,24 @@ import { recomputeLeadScore } from "../services/scoring";
 import { createIstDate, getIstParts, getIstTomorrow } from "@/lib/timezone";
 import { eq, sql } from "drizzle-orm";
 
+export { assertCanSeed, extractDatabaseHost };
+
 const FIXED_DEMO_PASSWORD = "DemoPass123!";
 
 export async function runSeed() {
-  if (process.env.ALLOW_SEED !== "true") {
-    console.error(
-      "❌ Error: Database seeding requires ALLOW_SEED=true in environment variables.\n" +
-      "Hint: Set ALLOW_SEED=true in .env.local (see .env.example)"
-    );
-    process.exit(1);
-  }
+  const databaseUrl = process.env.DATABASE_URL;
+  const allowSeed = process.env.ALLOW_SEED;
+  const allowLocalSeed = process.env.ALLOW_LOCAL_SEED;
 
+  // 1. Pre-flight Guard Check: validates database host & authorization before ANY tables or data are touched
+  const { host } = assertCanSeed({
+    databaseUrl,
+    allowSeed,
+    allowLocalSeed,
+  });
+
+  // 2. Safe Line: Database host only (no user, password, or path) and asks nothing
+  console.log(`Seeding database host: ${host}`);
   console.log("🌱 Starting PropLead AI database seed...");
 
   const now = new Date();
@@ -869,7 +850,7 @@ if (require.main === module || process.argv[1]?.includes("seed.ts")) {
       process.exit(0);
     })
     .catch((err) => {
-      console.error("❌ Seed failed:", err);
+      console.error("❌ Seed failed:", err?.message || err);
       process.exit(1);
     });
 }

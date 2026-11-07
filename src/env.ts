@@ -8,14 +8,17 @@ const isBuildPhase =
   process.env.NEXT_PHASE === "phase-production-build" ||
   process.env.npm_lifecycle_event === "build";
 
+const isTestOrBuild =
+  isBuildPhase || process.env.NODE_ENV === "test";
+
 const envSchema = z.object({
   DATABASE_URL: z
     .string()
     .min(1, "DATABASE_URL is required")
     .default(
       process.env.DATABASE_URL ||
-        (isBuildPhase || process.env.NODE_ENV !== "production"
-          ? "postgres://postgres:postgres@localhost:5432/proplead_ai"
+        (isTestOrBuild
+          ? "postgres://placeholder-for-test-or-build"
           : "")
     ),
   JWT_SECRET: z
@@ -23,7 +26,7 @@ const envSchema = z.object({
     .min(32, "JWT_SECRET must be at least 32 characters long")
     .default(
       process.env.JWT_SECRET ||
-        (isBuildPhase || process.env.NODE_ENV !== "production"
+        (isTestOrBuild
           ? "proplead_ai_super_secret_development_key_minimum_32_bytes"
           : "")
     ),
@@ -32,7 +35,7 @@ const envSchema = z.object({
     .min(16, "CRON_SECRET must be at least 16 characters long")
     .default(
       process.env.CRON_SECRET ||
-        (isBuildPhase || process.env.NODE_ENV !== "production"
+        (isTestOrBuild
           ? "demo_cron_secret_minimum_32_bytes"
           : "")
     ),
@@ -54,17 +57,17 @@ function validateEnv(): Env {
     ...process.env,
     DATABASE_URL:
       process.env.DATABASE_URL?.trim() ||
-      (isBuildPhase || process.env.NODE_ENV !== "production"
-        ? "postgres://postgres:postgres@localhost:5432/proplead_ai"
+      (isTestOrBuild
+        ? "postgres://placeholder-for-test-or-build"
         : ""),
     JWT_SECRET:
       process.env.JWT_SECRET?.trim() ||
-      (isBuildPhase || process.env.NODE_ENV !== "production"
+      (isTestOrBuild
         ? "proplead_ai_super_secret_development_key_minimum_32_bytes"
         : ""),
     CRON_SECRET:
       process.env.CRON_SECRET?.trim() ||
-      (isBuildPhase || process.env.NODE_ENV !== "production"
+      (isTestOrBuild
         ? "demo_cron_secret_minimum_32_bytes"
         : ""),
   };

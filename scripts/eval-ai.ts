@@ -1,17 +1,6 @@
-import "./load-env";
+import "../src/server/env-load";
 import * as fs from "fs";
 import * as path from "path";
-import * as dotenv from "dotenv";
-
-// 1. Load env from .env.local first, then .env
-const envLocalPath = path.resolve(process.cwd(), ".env.local");
-if (fs.existsSync(envLocalPath)) {
-  dotenv.config({ path: envLocalPath });
-}
-const envPath = path.resolve(process.cwd(), ".env");
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
-}
 
 // AI evals run offline in test mode against in-memory PGlite
 Object.assign(process.env, { NODE_ENV: process.env.NODE_ENV || "test" });

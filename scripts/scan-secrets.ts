@@ -1,17 +1,7 @@
+import "../src/server/env-load";
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
-import * as dotenv from "dotenv";
-
-// 1. Load env from .env.local first, then .env
-const envLocalPath = path.resolve(process.cwd(), ".env.local");
-if (fs.existsSync(envLocalPath)) {
-  dotenv.config({ path: envLocalPath });
-}
-const envPath = path.resolve(process.cwd(), ".env");
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
-}
 
 const PATTERNS: Array<{ name: string; regex: RegExp }> = [
   { name: "Google API Key", regex: /AIza[0-9A-Za-z-_]{35}/ },

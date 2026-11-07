@@ -1,3 +1,4 @@
+import "../src/server/env-load";
 import fs from "fs";
 import path from "path";
 
