@@ -119,6 +119,13 @@ flowchart TD
    - DPDP right to erasure / anonymization endpoint (`POST /api/admin/leads/[id]/anonymize`).
    - Comprehensive security audit documented in [`docs/security.md`](file:///docs/security.md).
 
+7. **Explainable Lead Priority Score:**
+   - Heuristic 0–100 scoring based strictly on customer intent signals (budget alignment against fact sheet endpoints, buying timeline urgency, site visit engagement, BHK preference, and conversational message count).
+   - Never evaluates personal, demographic, or protected characteristics (name, phone, email, language).
+   - Transparent qualification tiers: Hot (&ge; 70), Warm (40–69), Cold (&lt; 40), with neutral points preventing false penalties on incomplete data ("Insufficient Data" badge).
+   - Automated high-intent handoff dispatched when a lead first crosses into Hot.
+   - Formula, weights, and mathematical definitions documented in [`docs/scoring.md`](file:///docs/scoring.md).
+
 ---
 
 ## Project Structure & Folder Map
@@ -130,6 +137,7 @@ PropLead-AI/
 │       └── reminders.yml      # 15-minute GitHub Actions automated cron runner
 ├── docs/
 │   ├── TDD.md                 # Complete Technical Design Document
+│   ├── scoring.md             # Lead Priority Score formula, weights, and methodology
 │   ├── security.md            # Security audit, findings, and route permission matrix
 │   ├── design.md              # Design system tokens, typography, and component guide
 │   ├── assumptions.md         # Architecture, operational, and regulatory assumptions

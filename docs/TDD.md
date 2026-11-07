@@ -59,6 +59,7 @@ To solve Company A's bottleneck within a focused solo engineering assignment, a 
 | **Sales Head Flagged Chat Review Queue** | **Done** | Moderation dashboard for inspecting guardrail violations and reassigning conversations. |
 | **Portfolio Source Dashboard** | **Done** | Channel CAC, CPV, visit conversion rates, and response time metrics across 3,000+ monthly leads. |
 | **DPDP Compliance & Data Masking** | **Done** | Phone masking (`+91 ******1234`), opt-out parsing, and one-click data anonymization. |
+| **Explainable Lead Priority Score** | **Done** | Rule-based 0–100 heuristic scoring based on intent signals (budget, timeline, visit, preference, engagement) with automated high-intent handoffs. |
 | *Live WhatsApp / SMS Delivery* | *Mocked* | Decoupled behind asynchronous `MessageService` with persistent audit logs (`message_log`). |
 | *Token Payment Gateway* | *Cut* | Out of scope for initial 7-day assignment; scheduled for Phase 2. |
 | *Live VoIP / PBX Telephony Integration* | *Cut* | Replaced by instant executive chat handoffs and calendar `.ics` passes. |
@@ -577,6 +578,40 @@ The AI assistant's compliance, resistance to prompt injections, and multilingual
 | **DPDP Opt-Out Detection** | 3 | **100% (3/3)** | Instant processing of `STOP`, `UNSUBSCRIBE`, Hindi `रद्द`, and Gujarati `રદ`. |
 | **Booking & Slot Navigation** | 8 | **100% (8/8)** | Guards against booking past slots, enforces 2-hour minimum lead times. |
 | **TOTAL** | **30** | **100% (30/30)** | **Zero failures across all evaluation categories.** |
+
+### 7.5 Explainable Lead Priority Score Engine (`src/server/services/scoring/index.ts`)
+
+#### 1. Architecture & Design Philosophy
+Real estate sales teams require transparent qualification reasoning rather than opaque predictive scores. The **Lead Priority Score** provides a deterministic, pure function heuristic evaluating buyer intent signals on a scale of 0 to 100 with explainable reasoning per dimension.
+
+> **Design Boundary:** Named strictly **"Lead Priority Score"** across all schemas, APIs, and screens. It is **NOT** a prediction, probability, or statistical outcome.
+
+#### 2. Intent Signals Only (Zero Personal Attribute Bias)
+To guarantee ethical fairness and DPDP compliance, the engine evaluates customer intent signals exclusively:
+* **Excluded:** Name, phone, email, gender, language, IP address, device metadata.
+* **Included:** Stated budget vs. registered project price range, declared buying timeline, site visit status, layout preference, and message engagement count.
+
+#### 3. Parameter Allocation & Maximums
+$$\text{Total Score} = \min\Big(100, \, \max\big(0, \, S_{\text{budget}} + S_{\text{timeline}} + S_{\text{visit}} + S_{\text{preference}} + S_{\text{engagement}}\big)\Big)$$
+
+| Parameter | Max | Intent Evaluated | Missing Data Handling |
+|:---|:---:|:---|:---|
+| **Budget Alignment** | 25 | Stated budget compared against registered Gujarat RERA fact sheet price endpoints. | 8 neutral points, marked in `missing` |
+| **Buying Timeline** | 25 | Urgency window (`within_1_month`, `1_to_3_months`, `3_to_6_months`, `exploring`, `unknown`). | 8 neutral points, marked in `missing` |
+| **Site Visit Status** | 20 | In-person commitment (`visited`, `confirmed`, `rescheduled`, cancelled/no-show, none). | 4 neutral points, marked in `missing` |
+| **Unit Preference** | 15 | Specificity of layout (`2 BHK`, `3 BHK`, `penthouse` vs general inquiry). | 4 neutral points, marked in `missing` |
+| **Engagement Volume**| 15 | Number of messages exchanged in conversation turns ($\ge 6$, $3$–$5$, $1$–$2$, $0$). | 3 neutral points, marked in `missing` |
+| **TOTAL** | **100** | **Comprehensive Intent Score** | Baseline unengaged: 27 points ("Insufficient Data") |
+
+#### 4. Qualification Tiers & High-Intent Handoffs
+* **Hot ($\ge 70$ points):** High-intent buyer with verified budget, near-term timeline, or scheduled/completed site visit.
+* **Warm ($40$ to $69$ points):** Mid-stage buyer who has shared partial requirements or is exploring mid-term.
+* **Cold ($< 40$ points):** Early-stage or low-intent inquiry.
+* **Automated High-Intent Handoff:** When a lead's score crosses into Hot ($\ge 70$) for the first time, an executive handoff is dispatched (`reason: 'high_intent'`), reusing the 2-hour deduplication rule to ensure relationship executives receive actionable, immediate notifications without spam.
+* **Executive IDOR & Confidentiality:** Non-admin executives see score details only on their assigned leads; unassigned lead scores are masked in list views. The autonomous assistant is strictly instructed never to reveal or mention priority scores or qualification tiers to buyers.
+
+#### 5. Limitations & Future Empirical Calibration
+Parameter weights and neutral baselines are currently rule-based heuristic assumptions designed for Company A's luxury residential workflow. In a commercial production rollout, these weights should be calibrated against empirical conversion cohorts from historical CRM bookings.
 
 ---
 

@@ -174,4 +174,27 @@ This document records the operational, architectural, and regulatory assumptions
   - **Sales Executive 4:** `amit@example.com`
   - **Demo Prospective Buyer:** `buyer@example.com`
 - **Interactive Preview Harness:**
-  - `/book-preview` provides an interactive demonstration screen allowing executives to test slot picking, race-condition handling, and .ics calendar generation prior to the Step 4 AI assistant integration.
+  - `/book-preview` was a temporary prototype screen removed during Step 8 repository hygiene.
+
+## 8. Explainable Lead Priority Score (Step 9)
+- **Rule-Based Prioritization, Not Machine Learning:**
+  - The Lead Priority Score is strictly a deterministic, rule-based qualification model designed for sales workflow prioritization.
+  - It is **explicitly named "Lead Priority Score"** across all schemas, APIs, and screens. It is **NOT** a prediction, probability, or statistical outcome.
+  - Weights and point ceilings are heuristic assumptions (Budget 25, Timeline 25, Site Visit 20, Preference 15, Engagement 15; Total 100). In a commercial deployment, these weights should be calibrated against empirical conversion cohorts.
+- **Intent Signals Only (DPDP Compliance & Ethical Safety):**
+  - Evaluates explicit customer intent signals exclusively:
+    - Budget relative to the project's registered Gujarat RERA price endpoints.
+    - Stated buying timeline (`within_1_month`, `1_to_3_months`, `3_to_6_months`, `exploring`, `unknown`).
+    - Physical experiential engagement (completed visit, confirmed booking, rescheduling, cancellations/no-shows).
+    - Specification of apartment configuration (`2 BHK`, `3 BHK`, `penthouse`).
+    - Conversational engagement volume (message exchange count).
+  - Strictly ignores demographic and personal attributes (name, gender, age, language, phone, email, device).
+- **Neutral Baselines for Missing Information:**
+  - Missing parameters receive a small neutral score rather than zero to prevent brand-new leads from being falsely penalized as cold prospects.
+  - Leads with $\ge 3$ missing parameters are labeled **"Insufficient Data"** in the executive UI.
+- **Tiers & High-Intent Handoff:**
+  - Tiers: Hot ($\ge 70$), Warm ($40$–$69$), Cold ($< 40$).
+  - When a lead's score first reaches Hot ($\ge 70$), the system triggers an executive handoff with reason `high_intent` (idempotent, reusing the 2-hour handoff deduplication rule).
+- **Confidentiality:**
+  - The score is strictly an internal CRM operational metric.
+  - The autonomous sales assistant prompt forbids revealing, calculating, or discussing priority scores or qualification tiers with buyers.

@@ -309,6 +309,21 @@ export class MockLlmProvider implements ILlmProvider {
       };
     }
 
+    // 12. Score privacy defense
+    if (
+      text.includes("priority score") ||
+      text.includes("lead score") ||
+      text.includes("lead_scores") ||
+      text.includes("hot lead") ||
+      text.includes("internal rating")
+    ) {
+      return {
+        content:
+          "All prospective buyers receive our team's highest personal attention. We focus on understanding your dream home requirements rather than internal classifications. How can I help you with our 2 and 3 BHK residences?",
+        language: "en",
+      };
+    }
+
     // Default polite response
     return {
       content:
